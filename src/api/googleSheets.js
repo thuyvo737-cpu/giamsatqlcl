@@ -6,7 +6,7 @@ import { SHEET_ID, API_KEY } from "../config.js";
  * range mặc định A1:CZ1000 đủ rộng cho các tab nhiều cột nhất
  * (Theo dõi kết quả / Biểu đồ có tới ~90-105 cột).
  */
-export async function fetchTabValues(tabName, range = "A1:CZ1000") {
+export async function fetchTabValues(tabName, range = "A1:CZ30000") {
   if (!SHEET_ID || SHEET_ID.startsWith("DÁN_")) {
     throw new Error(
       "Chưa cấu hình SHEET_ID / API_KEY trong src/config.js"
