@@ -15,11 +15,21 @@ export const LOAI = {
 export const CONTENT_KEYS = ["nhanDang", "vongTay", "teNga", "atpt", "s5"];
 
 export const CONTENT_LABELS = {
-  nhanDang: "Nhận dạng người bệnh",
-  vongTay: "Vòng tay nhận dạng",
-  teNga: "Đánh giá nguy cơ té ngã",
-  atpt: "Bảng kiểm an toàn phẫu thuật",
+  nhanDang: "Nhận dạng NB",
+  vongTay: "Vòng tay NB",
+  teNga: "Nguy cơ té ngã",
+  atpt: "Bảng kiểm ATPT",
   s5: "Đánh giá 5S",
+};
+
+// Màu định danh theo nội dung — đồng bộ với biến CSS --c-* trong global.css
+// và class .group-0..4 (thứ tự khớp với CONTENT_KEYS bên dưới).
+export const CONTENT_COLORS = {
+  nhanDang: "var(--c-nhandang)",
+  vongTay: "var(--c-vongtay)",
+  teNga: "var(--c-tenga)",
+  atpt: "var(--c-atpt)",
+  s5: "var(--c-5s)",
 };
 
 function weightedAvg(items) {
@@ -155,6 +165,23 @@ export function buildCoverageDonut(ketQuaFull, { thang, nam }) {
     });
   });
   return Object.entries(totals).map(([name, value]) => ({ name, value }));
+}
+
+/**
+ * Dòng "Tổng cộng" cho bảng theo khoa: Số lượng = cộng tất cả khoa,
+ * Tỷ lệ = trung bình cộng tỷ lệ của các khoa (mỗi khoa đã tính đúng
+ * công thức TB cộng GS chéo/Ngoại kiểm trước đó).
+ */
+export function computeTotalRow(tableRows) {
+  const totals = {};
+  CONTENT_KEYS.forEach((g) => {
+    const items = tableRows.map((r) => r.values[g]).filter(Boolean);
+    const totalN = items.reduce((s, x) => s + (x.n || 0), 0);
+    const rates = items.map((x) => x.rate).filter((v) => v !== null && v !== undefined);
+    const avgRate = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : null;
+    totals[g] = { n: totalN, rate: avgRate };
+  });
+  return totals;
 }
 
 /** Biến động tỷ lệ tuân thủ chung theo khoa so với tháng liền trước. */

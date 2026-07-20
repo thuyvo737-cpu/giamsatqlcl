@@ -11,7 +11,7 @@ export function Nav({ active, onChange, syncStatus }) {
     <aside className="sidebar">
       <div className="brand">
         Giám sát QT-QĐ
-        <small>BVQY175 · Phòng QLCL</small>
+        <small>BVQY175 · Ban QLCL</small>
       </div>
       <ul className="nav-list">
         {PAGES.map((p, i) => (

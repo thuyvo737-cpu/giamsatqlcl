@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { LoadingState, ErrorState } from "../components/LoadingState.jsx";
+import { MultiSelectKhoa } from "../components/MultiSelectKhoa.jsx";
 import {
   CONTENT_KEYS,
   CONTENT_LABELS,
@@ -19,7 +20,7 @@ import {
   listKhoa,
 } from "../utils/aggregate.js";
 
-const LINE_COLORS = ["#2a9d8f", "#e0a458", "#16293c", "#d1615a", "#8fd4c9"];
+const LINE_COLORS = ["#5fb3a3", "#e3ab68", "#4a5578", "#d9897f", "#a373ac"];
 const MONTH_LABELS = Array.from({ length: 12 }, (_, i) => `T${i + 1}`);
 
 export function XuHuong({ hook }) {
@@ -66,10 +67,6 @@ export function XuHuong({ hook }) {
       <div className="page-header">
         <p className="page-eyebrow">Xu hướng</p>
         <h1 className="page-title">Xu hướng tuân thủ theo tháng</h1>
-        <p className="page-desc">
-          Diễn biến tỷ lệ tuân thủ theo từng tháng, hiển thị đồng thời cho tất cả nội dung giám sát — không cần
-          chọn từng nội dung riêng lẻ.
-        </p>
       </div>
 
       <div className="control-row">
@@ -81,20 +78,7 @@ export function XuHuong({ hook }) {
             </option>
           ))}
         </select>
-        <select
-          className="select"
-          multiple
-          value={selectedKhoa}
-          onChange={(e) => setSelectedKhoa(Array.from(e.target.selectedOptions, (o) => o.value))}
-          style={{ minWidth: 160, height: 34 }}
-        >
-          {allKhoa.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
-        <span className="badge-updated">Giữ Ctrl/Cmd để chọn nhiều khoa · mặc định 5 khoa đầu</span>
+        <MultiSelectKhoa options={allKhoa} value={selectedKhoa} onChange={setSelectedKhoa} placeholder="Mặc định 5 khoa đầu" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 20 }}>

@@ -2,12 +2,7 @@ import { useState } from "react";
 import { Nav } from "./components/Nav.jsx";
 import { useSheetData } from "./hooks/useSheetData.js";
 import { TABS } from "./config.js";
-import {
-  parseKetQuaFull,
-  parseSoSanh,
-  parseBieuDo,
-  parseLoiViPham,
-} from "./utils/parsers.js";
+import { parseKetQuaFull, parseBieuDo, parseLoiViPham } from "./utils/parsers.js";
 import { Overview } from "./pages/Overview.jsx";
 import { KetQua } from "./pages/KetQua.jsx";
 import { SoSanh } from "./pages/SoSanh.jsx";
@@ -18,14 +13,13 @@ export default function App() {
   const [page, setPage] = useState("overview");
 
   const ketQuaFull = useSheetData(TABS.ketQuaFull, parseKetQuaFull);
-  const soSanh = useSheetData(TABS.soSanh, parseSoSanh);
   const bieuDo = useSheetData(TABS.bieuDo, parseBieuDo);
   const loiViPham = useSheetData(TABS.loiViPham, parseLoiViPham);
 
   const activeHook = {
     overview: ketQuaFull,
     ketqua: ketQuaFull,
-    sosanh: soSanh,
+    sosanh: ketQuaFull,
     xuhuong: ketQuaFull,
     loivipham: loiViPham,
   }[page];
@@ -39,7 +33,7 @@ export default function App() {
           <Overview bieuDo={bieuDo} loiViPham={loiViPham} ketQuaFull={ketQuaFull} />
         )}
         {page === "ketqua" && <KetQua hook={ketQuaFull} />}
-        {page === "sosanh" && <SoSanh hook={soSanh} />}
+        {page === "sosanh" && <SoSanh hook={ketQuaFull} />}
         {page === "xuhuong" && <XuHuong hook={ketQuaFull} />}
         {page === "loivipham" && <LoiViPham hook={loiViPham} />}
       </main>

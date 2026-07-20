@@ -12,15 +12,16 @@ import {
 import {
   CONTENT_KEYS,
   CONTENT_LABELS,
+  CONTENT_COLORS,
   computeRate,
   getRecordsForContent,
   listKhoa,
 } from "../utils/aggregate.js";
 
 function barColor(pct) {
-  if (pct >= 90) return "#2a9d8f";
-  if (pct >= 70) return "#e0a458";
-  return "#d1615a";
+  if (pct >= 90) return "#5fb3a3";
+  if (pct >= 70) return "#e3ab68";
+  return "#d9897f";
 }
 
 export function MonthlyDetailCharts({ ketQuaFullData, month, year }) {
@@ -45,11 +46,23 @@ export function MonthlyDetailCharts({ ketQuaFullData, month, year }) {
             style={{
               fontFamily: "var(--font-display)",
               fontSize: 13.5,
-              fontWeight: 600,
+              fontWeight: 700,
               color: "var(--navy-900)",
               margin: "0 0 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 3,
+                background: CONTENT_COLORS[sec.key],
+                display: "inline-block",
+              }}
+            />
             {sec.name}
           </h4>
           {sec.data.length === 0 ? (

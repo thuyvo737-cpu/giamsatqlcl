@@ -1,7 +1,7 @@
-export function StatCard({ label, value }) {
+export function StatCard({ label, value, color }) {
   const pct = Math.round((value || 0) * 1000) / 10; // value is 0..1 ratio
   return (
-    <div className="kpi-card">
+    <div className="kpi-card" style={color ? { "--kpi-color": color } : undefined}>
       <div className="kpi-label">{label}</div>
       <div className="kpi-value">{pct}%</div>
       <div className="kpi-bar-track">

@@ -10,9 +10,7 @@ import {
 } from "recharts";
 
 export function ParetoChart({ legend }) {
-  const sorted = [...(legend || [])]
-    .filter((x) => x.count > 0)
-    .sort((a, b) => b.count - a.count);
+  const sorted = [...(legend || [])].filter((x) => x.count > 0).sort((a, b) => b.count - a.count);
 
   if (!sorted.length) {
     return <div className="state-box">Chưa có lượt vi phạm nào được ghi nhận.</div>;
@@ -22,42 +20,19 @@ export function ParetoChart({ legend }) {
   let cumulative = 0;
   const data = sorted.map((x) => {
     cumulative += x.count;
-    return {
-      name: x.name.length > 24 ? x.name.slice(0, 24) + "…" : x.name,
-      fullName: x.name,
-      count: x.count,
-      cumPct: Math.round((cumulative / total) * 1000) / 10,
-    };
+    return { name: x.name, count: x.count, cumPct: Math.round((cumulative / total) * 1000) / 10 };
   });
 
   return (
-    <ResponsiveContainer width="100%" height={320}>
-      <ComposedChart data={data} margin={{ left: -10, bottom: 60 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" />
-        <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-35} textAnchor="end" interval={0} height={70} />
-        <YAxis yAxisId="left" tick={{ fontSize: 10 }} allowDecimals={false} />
-        <YAxis
-          yAxisId="right"
-          orientation="right"
-          domain={[0, 100]}
-          tickFormatter={(v) => `${v}%`}
-          tick={{ fontSize: 10 }}
-        />
+    <ResponsiveContainer width="100%" height={Math.max(260, data.length * 46)}>
+      <ComposedChart data={data} layout="vertical" margin={{ left: 10, right: 40 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" horizontal={false} />
+        <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+        <YAxis type="category" dataKey="name" width={230} tick={{ fontSize: 11 }} />
         <Tooltip
-          formatter={(value, key) =>
-            key === "cumPct" ? [`${value}%`, "Tích lũy"] : [value, "Số lượt"]
-          }
-          labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ""}
+          formatter={(value, key) => (key === "cumPct" ? [`${value}%`, "Tích lũy"] : [value, "Số lượt"])}
         />
-        <Bar yAxisId="left" dataKey="count" fill="#d1615a" radius={[3, 3, 0, 0]} barSize={28} />
-        <Line
-          yAxisId="right"
-          type="monotone"
-          dataKey="cumPct"
-          stroke="#16293c"
-          strokeWidth={2}
-          dot={{ r: 3 }}
-        />
+        <Bar dataKey="count" fill="var(--red-500, #d9897f)" radius={[0, 4, 4, 0]} barSize={20} />
       </ComposedChart>
     </ResponsiveContainer>
   );

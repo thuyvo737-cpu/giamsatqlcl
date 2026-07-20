@@ -4,18 +4,11 @@ import {
   CONTENT_KEYS,
   CONTENT_LABELS,
   computeRate,
+  computeTotalRow,
   getAvailableYears,
   getRecordsForContent,
   listKhoa,
 } from "../utils/aggregate.js";
-
-const SHORT_LABEL = {
-  nhanDang: "Nhận dạng NB",
-  vongTay: "Vòng tay NB",
-  teNga: "Nguy cơ té ngã",
-  atpt: "Bảng kiểm ATPT",
-  s5: "Đánh giá 5S",
-};
 
 export function KetQua({ hook }) {
   const [query, setQuery] = useState("");
@@ -56,6 +49,8 @@ export function KetQua({ hook }) {
     return tableRows.filter((r) => r.khoa.toLowerCase().includes(q));
   }, [tableRows, query]);
 
+  const totalRow = useMemo(() => computeTotalRow(filtered), [filtered]);
+
   if (hook.loading) return <LoadingState />;
   if (hook.error) return <ErrorState message={hook.error} />;
 
@@ -64,10 +59,7 @@ export function KetQua({ hook }) {
       <div className="page-header">
         <p className="page-eyebrow">Kết quả giám sát</p>
         <h1 className="page-title">Kết quả chi tiết theo khoa</h1>
-        <p className="page-desc">
-          Số lượng giám sát và tỷ lệ tuân thủ theo từng nội dung, tính theo đúng công thức: trung bình cộng tỷ lệ
-          Giám sát chéo và Ngoại kiểm.
-        </p>
+        <p className="page-desc">Số lượng giám sát và tỷ lệ tuân thủ theo từng nội dung.</p>
       </div>
 
       <div className="control-row">
@@ -101,10 +93,10 @@ export function KetQua({ hook }) {
       </p>
 
       <div className="table-wrap table-scroll">
-        <table>
+        <table className="align-center">
           <thead>
             <tr>
-              <th rowSpan={2} style={{ position: "sticky", left: 0, top: 0, zIndex: 3, background: "var(--navy-950)" }}>
+              <th rowSpan={2} style={{ position: "sticky", left: 0, top: 0, zIndex: 3, background: "var(--navy-950)", textAlign: "left" }}>
                 Khoa
               </th>
               {CONTENT_KEYS.map((g, i) => (
@@ -112,9 +104,9 @@ export function KetQua({ hook }) {
                   key={g}
                   colSpan={2}
                   className={`group-${i}`}
-                  style={{ textAlign: "center", position: "sticky", top: 0, zIndex: 2 }}
+                  style={{ position: "sticky", top: 0, zIndex: 2 }}
                 >
-                  {SHORT_LABEL[g]}
+                  {CONTENT_LABELS[g]}
                 </th>
               ))}
             </tr>
@@ -159,6 +151,26 @@ export function KetQua({ hook }) {
                 })}
               </tr>
             ))}
+            {filtered.length > 0 && (
+              <tr className="total-row">
+                <td className="khoa-cell">Tổng cộng</td>
+                {CONTENT_KEYS.map((g) => {
+                  const { n, rate } = totalRow[g] || {};
+                  return (
+                    <Fragment key={g}>
+                      <td>{n || "—"}</td>
+                      <td>
+                        {rate === null || rate === undefined ? (
+                          <span className="na-badge">—</span>
+                        ) : (
+                          <span className={pillClass(rate)}>{Math.round(rate * 1000) / 10}%</span>
+                        )}
+                      </td>
+                    </Fragment>
+                  );
+                })}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
