@@ -10,7 +10,7 @@
 // =============================================================
 
 export const SHEET_ID = "1sk5kB-Truf5WVxaTcsoIkYo7Vv7VR0-hiJlRlbT3jUE";
-export const API_KEY = "DÁN_API_KEY_VÀO_ĐÂY";
+export const API_KEY = "AIzaSyCkOM3MMIZpasf1MDqqOcucH7X0N5ahz7M";
 
 export const TABS = {
   ketQuaFull: "Kết quả full",
