@@ -27,16 +27,19 @@ export function Nav({ active, onChange, syncStatus }) {
         ))}
       </ul>
       <div className="sidebar-foot">
-        <span
-          className={`sync-dot ${
-            syncStatus === "ok" ? "ok" : syncStatus === "error" ? "err" : "pending"
-          }`}
-        />
-        {syncStatus === "ok"
-          ? "Đồng bộ realtime"
-          : syncStatus === "error"
-          ? "Lỗi kết nối Sheet"
-          : "Đang đồng bộ..."}
+        <div>
+          <span
+            className={`sync-dot ${
+              syncStatus === "ok" ? "ok" : syncStatus === "error" ? "err" : "pending"
+            }`}
+          />
+          {syncStatus === "ok"
+            ? "Đã đồng bộ"
+            : syncStatus === "error"
+            ? "Lỗi kết nối Sheet"
+            : "Đang đồng bộ..."}
+        </div>
+        <div className="sidebar-foot-sub">Dành cho BQLCL</div>
       </div>
     </aside>
   );

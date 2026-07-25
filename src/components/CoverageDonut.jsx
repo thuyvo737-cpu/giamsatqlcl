@@ -20,6 +20,8 @@ export function CoverageDonut({ data }) {
           innerRadius={60}
           outerRadius={95}
           paddingAngle={2}
+          label={({ percent }) => `${Math.round(percent * 100)}%`}
+          labelLine={false}
         >
           {data.map((d) => (
             <Cell key={d.name} fill={COLORS[d.name] || "#dbe1e0"} />

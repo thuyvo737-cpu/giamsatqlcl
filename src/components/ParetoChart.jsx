@@ -6,6 +6,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  LabelList,
   ResponsiveContainer,
 } from "recharts";
 
@@ -32,7 +33,9 @@ export function ParetoChart({ legend }) {
         <Tooltip
           formatter={(value, key) => (key === "cumPct" ? [`${value}%`, "Tích lũy"] : [value, "Số lượt"])}
         />
-        <Bar dataKey="count" fill="var(--red-500, #d9897f)" radius={[0, 4, 4, 0]} barSize={20} />
+        <Bar dataKey="count" fill="var(--red-500, #d9897f)" radius={[0, 4, 4, 0]} barSize={20}>
+          <LabelList dataKey="count" position="right" style={{ fontSize: 11, fontWeight: 700, fill: "var(--navy-900)" }} />
+        </Bar>
       </ComposedChart>
     </ResponsiveContainer>
   );

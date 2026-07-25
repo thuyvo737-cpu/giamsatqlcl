@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Nav } from "./components/Nav.jsx";
 import { useSheetData } from "./hooks/useSheetData.js";
 import { TABS } from "./config.js";
-import { parseKetQuaFull, parseBieuDo, parseLoiViPham } from "./utils/parsers.js";
+import { parseKetQuaFull, parseLoiViPham } from "./utils/parsers.js";
 import { Overview } from "./pages/Overview.jsx";
 import { KetQua } from "./pages/KetQua.jsx";
 import { SoSanh } from "./pages/SoSanh.jsx";
@@ -12,8 +12,9 @@ import { LoiViPham } from "./pages/LoiViPham.jsx";
 export default function App() {
   const [page, setPage] = useState("overview");
 
+  // Chỉ còn đọc 2 tab (đã bỏ tab "Biểu đồ" — KPI giờ tính trực tiếp từ
+  // "Kết quả full" để luôn khớp với bộ lọc tháng/năm trên trang).
   const ketQuaFull = useSheetData(TABS.ketQuaFull, parseKetQuaFull);
-  const bieuDo = useSheetData(TABS.bieuDo, parseBieuDo);
   const loiViPham = useSheetData(TABS.loiViPham, parseLoiViPham);
 
   const activeHook = {
@@ -29,10 +30,8 @@ export default function App() {
     <div className="app-shell">
       <Nav active={page} onChange={setPage} syncStatus={syncStatus} />
       <main className="main">
-        {page === "overview" && (
-          <Overview bieuDo={bieuDo} loiViPham={loiViPham} ketQuaFull={ketQuaFull} />
-        )}
-        {page === "ketqua" && <KetQua hook={ketQuaFull} />}
+        {page === "overview" && <Overview loiViPham={loiViPham} ketQuaFull={ketQuaFull} />}
+        {page === "ketqua" && <KetQua hook={ketQuaFull} loiViPham={loiViPham} />}
         {page === "sosanh" && <SoSanh hook={ketQuaFull} />}
         {page === "xuhuong" && <XuHuong hook={ketQuaFull} />}
         {page === "loivipham" && <LoiViPham hook={loiViPham} />}

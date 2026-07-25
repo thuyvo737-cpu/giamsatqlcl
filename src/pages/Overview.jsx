@@ -1,13 +1,4 @@
 import { useMemo, useState } from "react";
-import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
 import { LoadingState, ErrorState } from "../components/LoadingState.jsx";
 import { StatCard } from "../components/StatCard.jsx";
 import { MonthlyDetailCharts } from "../components/MonthlyDetailCharts.jsx";
@@ -17,6 +8,7 @@ import { ParetoChart } from "../components/ParetoChart.jsx";
 import { DistributionChart } from "../components/DistributionChart.jsx";
 import { CoverageDonut } from "../components/CoverageDonut.jsx";
 import { MonthOverMonthTable } from "../components/MonthOverMonthTable.jsx";
+import { QuarterCompareChart } from "../components/QuarterCompareChart.jsx";
 import { InsightBox } from "../components/InsightBox.jsx";
 import {
   CONTENT_KEYS,
@@ -27,14 +19,16 @@ import {
   buildDistribution,
   buildHeatmapMatrix,
   buildMonthOverMonth,
+  buildQuarterComparison,
+  computeKpiSummary,
   getAvailableYears,
 } from "../utils/aggregate.js";
 import { generateInsights } from "../utils/insights.js";
 
-// 4 KPI trong tab "Biểu đồ" luôn theo đúng thứ tự nhận dạng/vòng tay/té ngã/ATPT
+// 4 KPI đầu trang luôn theo đúng thứ tự nhận dạng/vòng tay/té ngã/ATPT
 const KPI_ORDER = ["nhanDang", "vongTay", "teNga", "atpt"];
 
-export function Overview({ bieuDo, loiViPham, ketQuaFull }) {
+export function Overview({ loiViPham, ketQuaFull }) {
   const now = new Date();
   const [month, setMonth] = useState(null);
   const [year, setYear] = useState(null);
@@ -45,6 +39,14 @@ export function Overview({ bieuDo, loiViPham, ketQuaFull }) {
   const effectiveYear =
     year ?? (years.includes(now.getFullYear()) ? now.getFullYear() : years[0] || now.getFullYear());
   const isAuto = month === null && year === null;
+
+  const kpis = useMemo(
+    () =>
+      ketQuaFull.data
+        ? computeKpiSummary(ketQuaFull.data, { thang: effectiveMonth, nam: effectiveYear })
+        : [],
+    [ketQuaFull.data, effectiveMonth, effectiveYear]
+  );
 
   const khoaRates = useMemo(
     () => (ketQuaFull.data ? aggregateAllKhoa(ketQuaFull.data, { thang: effectiveMonth, nam: effectiveYear }) : []),
@@ -63,6 +65,10 @@ export function Overview({ bieuDo, loiViPham, ketQuaFull }) {
     () => (ketQuaFull.data ? buildHeatmapMatrix(ketQuaFull.data, heatmapContent, effectiveYear) : []),
     [ketQuaFull.data, heatmapContent, effectiveYear]
   );
+  const quarterData = useMemo(
+    () => (ketQuaFull.data ? buildQuarterComparison(ketQuaFull.data, { nam: effectiveYear }) : []),
+    [ketQuaFull.data, effectiveYear]
+  );
   const insightLines = useMemo(
     () =>
       generateInsights({
@@ -76,76 +82,63 @@ export function Overview({ bieuDo, loiViPham, ketQuaFull }) {
     [khoaRates, distribution, monthOverMonth, loiViPham.data, effectiveMonth, effectiveYear]
   );
 
-  if (bieuDo.loading) return <LoadingState />;
-  if (bieuDo.error) return <ErrorState message={bieuDo.error} />;
-
-  const rawKpis = bieuDo.data?.kpis || [];
-  const kpis = KPI_ORDER.map((key, i) => ({
-    key,
-    label: CONTENT_LABELS[key],
-    color: CONTENT_COLORS[key],
-    value: rawKpis[i]?.value ?? 0,
-  }));
-
-  const radarData = kpis.map((k) => ({
-    name: k.label,
-    "Tỷ lệ tuân thủ": Math.round(k.value * 1000) / 10,
-  }));
+  if (ketQuaFull.loading) return <LoadingState />;
+  if (ketQuaFull.error) return <ErrorState message={ketQuaFull.error} />;
 
   const topViolations = (loiViPham.data?.rows || []).slice(0, 5);
 
   return (
     <div>
       <div className="page-header">
-        <p className="page-eyebrow">Tổng quan · Cập nhật realtime</p>
-        <h1 className="page-title">{bieuDo.data?.title || "Kết quả giám sát tuân thủ QT-QĐ"}</h1>
+        <p className="page-eyebrow">Tổng quan</p>
+        <h1 className="page-title">Kết quả giám sát tuân thủ QT-QĐ</h1>
       </div>
 
       <div className="grid grid-4">
-        {kpis.map((k) => (
-          <StatCard key={k.key} label={k.label} value={k.value} color={k.color} />
-        ))}
+        {KPI_ORDER.map((key) => {
+          const k = kpis.find((x) => x.key === key);
+          return (
+            <StatCard
+              key={key}
+              label={CONTENT_LABELS[key]}
+              value={k?.rate ?? null}
+              n={k?.n ?? null}
+              delta={k?.delta ?? null}
+              color={CONTENT_COLORS[key]}
+            />
+          );
+        })}
       </div>
 
-      <div className="card" style={{ marginTop: 24 }}>
-        <h3 className="card-title">Biểu đồ tổng hợp tỷ lệ tuân thủ</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <RadarChart data={radarData} outerRadius={95}>
-            <PolarGrid stroke="#e4dff0" />
-            <PolarAngleAxis dataKey="name" tick={{ fontSize: 12, fill: "#675f80" }} />
-            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 10, fill: "#9a92ac" }} />
-            <Radar name="Tỷ lệ tuân thủ" dataKey="Tỷ lệ tuân thủ" stroke="#5fb3a3" fill="#5fb3a3" fillOpacity={0.35} />
-            <Tooltip formatter={(v) => `${v}%`} />
-          </RadarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* ---- Nhận xét tự động — đưa lên đầu như tóm tắt điều hành ---- */}
-      <div style={{ marginTop: 24 }}>
+      {/* ---- Bộ lọc bên trái + Nhận xét tự động bên phải ---- */}
+      <div className="grid grid-2" style={{ marginTop: 24, alignItems: "stretch" }}>
+        <div className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <h3 className="card-title">Chọn khoảng thời gian xem</h3>
+          <MonthYearFilter
+            month={effectiveMonth}
+            year={effectiveYear}
+            years={years}
+            isAuto={isAuto}
+            onMonthChange={setMonth}
+            onYearChange={setYear}
+            onReset={() => {
+              setMonth(null);
+              setYear(null);
+            }}
+          />
+          <span className="badge-updated" style={{ marginTop: 8, display: "block" }}>
+            {isAuto ? `Tự động — Tháng ${effectiveMonth}/${effectiveYear} (hiện tại)` : `Đang xem Tháng ${effectiveMonth}/${effectiveYear}`}
+          </span>
+        </div>
         <InsightBox lines={insightLines} title={`Nhận xét tự động — Tháng ${effectiveMonth}/${effectiveYear}`} />
       </div>
 
-      {/* ---- Bộ lọc dùng chung cho phần phân tích bên dưới ---- */}
-      <div className="control-row" style={{ marginTop: 24 }}>
-        <MonthYearFilter
-          month={effectiveMonth}
-          year={effectiveYear}
-          years={years}
-          isAuto={isAuto}
-          onMonthChange={setMonth}
-          onYearChange={setYear}
-          onReset={() => {
-            setMonth(null);
-            setYear(null);
-          }}
-        />
-        <span className="badge-updated">
-          {isAuto ? `Tự động — Tháng ${effectiveMonth}/${effectiveYear} (hiện tại)` : `Đang xem Tháng ${effectiveMonth}/${effectiveYear}`}
-        </span>
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3 className="card-title">So sánh theo quý — Năm {effectiveYear}</h3>
+        {ketQuaFull.loading ? <LoadingState /> : <QuarterCompareChart data={quarterData} />}
       </div>
 
-      {/* ---- Phân tích tổng quát trước ---- */}
-      <div className="grid grid-2">
+      <div className="grid grid-2" style={{ marginTop: 20 }}>
         <div className="card">
           <h3 className="card-title">Phân bố khoa theo mức tuân thủ</h3>
           {ketQuaFull.loading ? <LoadingState /> : <DistributionChart buckets={distribution} />}
@@ -159,6 +152,21 @@ export function Overview({ bieuDo, loiViPham, ketQuaFull }) {
       <div className="card" style={{ marginTop: 20 }}>
         <h3 className="card-title">Biến động so với tháng trước</h3>
         {ketQuaFull.loading ? <LoadingState /> : <MonthOverMonthTable data={monthOverMonth} />}
+      </div>
+
+      {/* ---- Biểu đồ chi tiết theo tiêu chí con — đưa lên trước Heatmap ---- */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3 className="card-title" style={{ marginBottom: 4 }}>
+          Biểu đồ chi tiết theo từng tiêu chí
+        </h3>
+        <p className="badge-updated" style={{ marginBottom: 18, display: "block" }}>
+          Tháng {effectiveMonth}/{effectiveYear} · gộp toàn viện
+        </p>
+        {ketQuaFull.loading && <LoadingState />}
+        {ketQuaFull.error && <ErrorState message={ketQuaFull.error} />}
+        {!ketQuaFull.loading && !ketQuaFull.error && (
+          <MonthlyDetailCharts ketQuaFullData={ketQuaFull.data} month={effectiveMonth} year={effectiveYear} />
+        )}
       </div>
 
       <div className="card" style={{ marginTop: 20 }}>
@@ -177,21 +185,6 @@ export function Overview({ bieuDo, loiViPham, ketQuaFull }) {
         <div style={{ marginTop: 16 }}>
           {ketQuaFull.loading ? <LoadingState /> : <Heatmap matrix={heatmapMatrix} />}
         </div>
-      </div>
-
-      {/* ---- Chi tiết hơn ---- */}
-      <div className="card" style={{ marginTop: 20 }}>
-        <h3 className="card-title" style={{ marginBottom: 4 }}>
-          Biểu đồ chi tiết theo từng nội dung
-        </h3>
-        <p className="badge-updated" style={{ marginBottom: 18, display: "block" }}>
-          Tháng {effectiveMonth}/{effectiveYear}
-        </p>
-        {ketQuaFull.loading && <LoadingState />}
-        {ketQuaFull.error && <ErrorState message={ketQuaFull.error} />}
-        {!ketQuaFull.loading && !ketQuaFull.error && (
-          <MonthlyDetailCharts ketQuaFullData={ketQuaFull.data} month={effectiveMonth} year={effectiveYear} />
-        )}
       </div>
 
       {/* ---- Lỗi vi phạm — cuối cùng ---- */}

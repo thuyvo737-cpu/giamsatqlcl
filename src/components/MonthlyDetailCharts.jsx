@@ -7,15 +7,15 @@ import {
   CartesianGrid,
   Tooltip,
   Cell,
+  LabelList,
   ResponsiveContainer,
 } from "recharts";
 import {
   CONTENT_KEYS,
   CONTENT_LABELS,
   CONTENT_COLORS,
-  computeRate,
+  computeSubCriteriaRates,
   getRecordsForContent,
-  listKhoa,
 } from "../utils/aggregate.js";
 
 function barColor(pct) {
@@ -24,19 +24,26 @@ function barColor(pct) {
   return "#d9897f";
 }
 
-export function MonthlyDetailCharts({ ketQuaFullData, month, year }) {
+/**
+ * Biểu đồ chi tiết theo TỪNG TIÊU CHÍ CON của mỗi nội dung (không còn
+ * tách theo khoa) — ví dụ Nhận dạng NB sẽ hiện tỷ lệ của "Sử dụng câu
+ * hỏi mở", "Nhận dạng họ tên NB", "Có đối chiếu MSYT"... `khoa` (mảng
+ * hoặc null) cho phép giới hạn vào 1/nhiều khoa cụ thể khi tái sử dụng
+ * ở trang Kết quả giám sát.
+ */
+export function MonthlyDetailCharts({ ketQuaFullData, month, year, khoa = null }) {
   const chartsBySection = useMemo(() => {
     if (!ketQuaFullData) return [];
     return CONTENT_KEYS.map((key) => {
       const records = getRecordsForContent(ketQuaFullData, key);
-      const khoas = listKhoa(records.filter((r) => r.nam === year));
-      const data = khoas.map((khoa) => {
-        const { rate } = computeRate(records, { thang: month, nam: year, khoa, contentKey: key });
-        return { khoa, value: rate !== null ? Math.round(rate * 1000) / 10 : 0 };
-      });
+      const subRates = computeSubCriteriaRates(records, { thang: month, nam: year, khoa, contentKey: key });
+      const data = subRates.map((s) => ({
+        label: s.label,
+        value: s.rate !== null ? Math.round(s.rate * 1000) / 10 : null,
+      }));
       return { key, name: CONTENT_LABELS[key], data };
     });
-  }, [ketQuaFullData, month, year]);
+  }, [ketQuaFullData, month, year, khoa]);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 20 }}>
@@ -68,16 +75,22 @@ export function MonthlyDetailCharts({ ketQuaFullData, month, year }) {
           {sec.data.length === 0 ? (
             <div className="state-box">Chưa có dữ liệu.</div>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={sec.data} margin={{ left: -10 }}>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={sec.data} margin={{ left: -10, top: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" vertical={false} />
-                <XAxis dataKey="khoa" tick={{ fontSize: 10 }} interval={0} angle={-40} textAnchor="end" height={50} />
+                <XAxis dataKey="label" tick={{ fontSize: 9.5 }} interval={0} angle={-35} textAnchor="end" height={68} />
                 <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} width={40} />
-                <Tooltip formatter={(v) => `${v}%`} />
+                <Tooltip formatter={(v) => (v === null ? "—" : `${v}%`)} />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                   {sec.data.map((d, i) => (
-                    <Cell key={i} fill={barColor(d.value)} />
+                    <Cell key={i} fill={d.value === null ? "#dbe1e0" : barColor(d.value)} />
                   ))}
+                  <LabelList
+                    dataKey="value"
+                    position="top"
+                    formatter={(v) => (v === null || v === undefined ? "" : `${v}%`)}
+                    style={{ fontSize: 10, fontWeight: 700, fill: "var(--navy-900)" }}
+                  />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

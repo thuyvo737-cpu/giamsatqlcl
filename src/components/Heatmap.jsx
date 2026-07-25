@@ -71,7 +71,22 @@ export function Heatmap({ matrix }) {
                 </td>
                 {row.cells.map((v, i) => (
                   <td key={i} title={v !== null ? `${Math.round(v * 1000) / 10}%` : "Không có dữ liệu"}>
-                    <div style={{ width: 24, height: 20, borderRadius: 4, background: heatColor(v) }} />
+                    <div
+                      style={{
+                        width: 34,
+                        height: 22,
+                        borderRadius: 4,
+                        background: heatColor(v),
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 9,
+                        fontWeight: 700,
+                        color: "var(--navy-950)",
+                      }}
+                    >
+                      {v !== null ? Math.round(v * 100) : ""}
+                    </div>
                   </td>
                 ))}
               </tr>

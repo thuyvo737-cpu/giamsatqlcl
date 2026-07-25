@@ -41,6 +41,11 @@ function cleanStr(v) {
 // Cột "số lượng giám sát" (n) của mỗi nội dung ứng với F/N/V/AD/AR
 // trong Sheet gốc — là cột đầu tiên của mỗi nhóm bên dưới.
 // -------------------------------------------------------------
+// subOffsets: vị trí cột (tính từ `start`) của các tiêu chí con "chiều
+// thuận" (đạt = tốt) dùng để vẽ biểu đồ chi tiết theo tiêu chí. Các cột
+// mang tính chất "chiều nghịch" (ví dụ "Không nhận dạng", "NB trùng tên")
+// bị loại khỏi danh sách này vì không phù hợp hiển thị chung thang đo
+// "tỷ lệ đạt" với các tiêu chí còn lại.
 export const QTQD_CONTENT_GROUPS = [
   {
     key: "nhanDang",
@@ -49,6 +54,13 @@ export const QTQD_CONTENT_GROUPS = [
     fieldCount: 8,
     nField: "Số TH đã nhận dạng",
     rateLabel: "Nhận dạng đạt yêu cầu",
+    subOffsets: [
+      { offset: 1, label: "Sử dụng câu hỏi mở" },
+      { offset: 2, label: "Nhận dạng họ tên NB" },
+      { offset: 3, label: "Nhận dạng NTNS" },
+      { offset: 4, label: "Nhận dạng địa chỉ NB" },
+      { offset: 5, label: "Có đối chiếu MSYT" },
+    ],
   },
   {
     key: "vongTay",
@@ -57,6 +69,13 @@ export const QTQD_CONTENT_GROUPS = [
     fieldCount: 8,
     nField: "Số NB được GS",
     rateLabel: "Tỷ lệ vòng tay đạt yêu cầu",
+    subOffsets: [
+      { offset: 2, label: "NB có vòng" },
+      { offset: 3, label: "Đạt màu sắc" },
+      { offset: 4, label: "Đạt thông tin" },
+      { offset: 5, label: "Đạt tình trạng vòng" },
+      { offset: 6, label: "Đạt vị trí đeo" },
+    ],
   },
   {
     key: "teNga",
@@ -65,6 +84,14 @@ export const QTQD_CONTENT_GROUPS = [
     fieldCount: 8,
     nField: "Tổng phiếu đánh giá",
     rateLabel: "Tỷ lệ đạt chung đánh giá té ngã",
+    subOffsets: [
+      { offset: 1, label: "Đánh giá trong 24h nhập viện" },
+      { offset: 2, label: "Phiếu đạt về thông tin" },
+      { offset: 3, label: "Tái đánh giá đúng quy định" },
+      { offset: 4, label: "Có thực hiện bảng HĐCT" },
+      { offset: 5, label: "HĐCT đầy đủ thông tin" },
+      { offset: 6, label: "HĐCT đúng mức nguy cơ" },
+    ],
   },
   {
     key: "atpt",
@@ -73,7 +100,24 @@ export const QTQD_CONTENT_GROUPS = [
     fieldCount: 9,
     nField: "Số hồ sơ được kiểm tra",
     rateLabel: "Tỷ lệ đạt thực hiện BK",
+    subOffsets: [
+      { offset: 1, label: "Thông tin NB điền đầy đủ" },
+      { offset: 2, label: "Giai đoạn 1 đầy đủ" },
+      { offset: 3, label: "Giai đoạn 2 đầy đủ" },
+      { offset: 4, label: "Giai đoạn 3 đầy đủ" },
+      { offset: 5, label: "Có thông tin người TH BK" },
+      { offset: 6, label: "Có chữ ký BSGM" },
+      { offset: 7, label: "Có chữ ký PTV" },
+    ],
   },
+];
+
+export const S5_SUB_OFFSETS = [
+  { offset: 1, label: "S1: Sàng lọc" },
+  { offset: 2, label: "S2: Sắp xếp" },
+  { offset: 3, label: "S3: Sạch sẽ" },
+  { offset: 4, label: "S4: Săn sóc" },
+  { offset: 5, label: "S5: Sẵn sàng" },
 ];
 
 export const S5_GROUP = {
@@ -81,6 +125,7 @@ export const S5_GROUP = {
   name: "Đánh giá 5S",
   nField: "Số khu vực được kiểm tra",
   rateLabel: "Tỷ lệ đạt trung bình",
+  subOffsets: S5_SUB_OFFSETS,
 };
 
 export const ALL_CONTENT_GROUPS = [
@@ -112,7 +157,11 @@ export function parseKetQuaFull(rows) {
         const n = toNumberOrNull(r[g.start]);
         const rateIdx = g.start + g.fieldCount - 1;
         const rate = toNumberOrNull(r[rateIdx]);
-        contents[g.key] = { n: n ?? 0, rate };
+        const sub = g.subOffsets.map((s) => ({
+          label: s.label,
+          rate: toNumberOrNull(r[g.start + s.offset]),
+        }));
+        contents[g.key] = { n: n ?? 0, rate, sub };
       });
       qtqd.push({ thang, nam, loai, donViGiamSat, donViDuocGiamSat, contents });
     }
@@ -126,6 +175,10 @@ export function parseKetQuaFull(rows) {
     const n5s = toNumberOrNull(r[43]);
     const rate5s = toNumberOrNull(r[49]);
     if (thang5s && nam5s && donViDuocDanhGia) {
+      const sub5s = S5_SUB_OFFSETS.map((s) => ({
+        label: s.label,
+        rate: toNumberOrNull(r[38 + 5 + s.offset]), // 38+5=43 (n), offset tính từ n
+      }));
       s5.push({
         thang: thang5s,
         nam: nam5s,
@@ -134,6 +187,7 @@ export function parseKetQuaFull(rows) {
         donViDuocGiamSat: donViDuocDanhGia,
         n: n5s ?? 0,
         rate: rate5s,
+        sub: sub5s,
       });
     }
   });

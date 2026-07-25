@@ -7,6 +7,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  LabelList,
   ResponsiveContainer,
 } from "recharts";
 
@@ -31,8 +32,12 @@ export function DumbbellChart({ data, labelA, labelB, colorA = "#2a9d8f", colorB
         <Legend />
         <Bar dataKey="base" stackId="range" fill="transparent" isAnimationActive={false} legendType="none" />
         <Bar dataKey="range" stackId="range" fill="#dbe1e0" barSize={3} isAnimationActive={false} legendType="none" />
-        <Scatter dataKey={labelA} name={labelA} fill={colorA} legendType="circle" />
-        <Scatter dataKey={labelB} name={labelB} fill={colorB} legendType="circle" />
+        <Scatter dataKey={labelA} name={labelA} fill={colorA} legendType="circle">
+          <LabelList dataKey={labelA} position="top" formatter={(v) => `${v}%`} style={{ fontSize: 9.5, fill: colorA, fontWeight: 700 }} />
+        </Scatter>
+        <Scatter dataKey={labelB} name={labelB} fill={colorB} legendType="circle">
+          <LabelList dataKey={labelB} position="bottom" formatter={(v) => `${v}%`} style={{ fontSize: 9.5, fill: colorB, fontWeight: 700 }} />
+        </Scatter>
       </ComposedChart>
     </ResponsiveContainer>
   );

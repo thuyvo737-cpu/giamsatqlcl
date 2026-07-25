@@ -549,3 +549,180 @@ tbody tr.total-row td.khoa-cell {
 .multiselect-option:hover {
   background: var(--paper-dim);
 }
+
+.multiselect-placeholder {
+  color: var(--ink-400);
+  font-size: 12.5px;
+}
+
+.multiselect-option-all {
+  font-weight: 700;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+}
+
+/* ---------- Sidebar footer phụ ---------- */
+.sidebar-foot-sub {
+  margin-top: 6px;
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--teal-300);
+  opacity: 0.85;
+}
+
+/* ---------- KPI card — phần thông tin bổ sung ---------- */
+.kpi-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.kpi-target-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.kpi-target-badge.good { background: rgba(120, 220, 180, 0.28); }
+.kpi-target-badge.bad { background: rgba(255, 150, 130, 0.28); }
+
+.kpi-delta {
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.kpi-delta.up { color: #baf0d8; }
+.kpi-delta.down { color: #ffcfc4; }
+.kpi-delta.flat { color: rgba(255, 255, 255, 0.7); }
+
+.kpi-n {
+  margin-top: 8px;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: var(--font-mono);
+}
+
+/* ---------- Bảng: cột sắp xếp được + tô nổi cao nhất/thấp nhất ---------- */
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+}
+.sortable-th:hover {
+  filter: brightness(1.15);
+}
+
+td.cell-max {
+  background: #e2f4ec;
+}
+td.cell-min {
+  background: #fbe9e6;
+}
+
+.extreme-tag {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.extreme-tag.good { color: #3d8a63; }
+.extreme-tag.bad { color: #c16b5f; }
+
+/* ---------- Responsive: điện thoại / màn hình hẹp ---------- */
+@media (max-width: 900px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .brand {
+    padding: 0;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .brand small {
+    display: none;
+  }
+
+  .nav-list {
+    flex-direction: row;
+    overflow-x: auto;
+    margin: 0;
+    gap: 4px;
+    flex: 1;
+    padding-bottom: 2px;
+  }
+
+  .nav-item {
+    white-space: nowrap;
+    width: auto;
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .nav-index {
+    display: none;
+  }
+
+  .sidebar-foot {
+    display: none;
+  }
+
+  .main {
+    padding: 16px 14px 40px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .page-desc {
+    max-width: 100%;
+  }
+
+  .grid-4,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-value {
+    font-size: 28px;
+  }
+
+  .control-row {
+    gap: 8px;
+  }
+
+  .multiselect-trigger {
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .multiselect-panel {
+    width: min(280px, 90vw);
+  }
+
+  .card {
+    padding: 16px;
+  }
+}

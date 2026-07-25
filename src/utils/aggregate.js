@@ -32,7 +32,7 @@ export const CONTENT_COLORS = {
   s5: "var(--c-5s)",
 };
 
-function weightedAvg(items) {
+export function weightedAvg(items) {
   const valid = (items || []).filter(
     (x) => x && x.rate !== null && x.rate !== undefined
   );
@@ -43,9 +43,28 @@ function weightedAvg(items) {
 }
 
 function pick(record, contentKey) {
-  if (contentKey === "s5") return { n: record.n, rate: record.rate };
-  return record.contents?.[contentKey] || { n: 0, rate: null };
+  if (contentKey === "s5") return { n: record.n, rate: record.rate, sub: record.sub };
+  return record.contents?.[contentKey] || { n: 0, rate: null, sub: [] };
 }
+
+/**
+ * So khớp 1 giá trị với bộ lọc: bộ lọc có thể là null/undefined (không
+ * lọc), 1 giá trị đơn, hoặc mảng nhiều giá trị (mảng rỗng = không lọc,
+ * tương đương "Tất cả"). Dùng chung cho thang/nam/khoa ở mọi hàm tổng hợp
+ * để đồng bộ hoá cách các trang hỗ trợ chọn nhiều tháng/năm/khoa.
+ */
+export function matchFilter(value, filter) {
+  if (filter === null || filter === undefined) return true;
+  if (Array.isArray(filter)) return filter.length === 0 || filter.includes(value);
+  return value === filter;
+}
+
+export const QUARTERS = [
+  { key: "q1", label: "Quý I", months: [1, 2, 3] },
+  { key: "q2", label: "Quý II", months: [4, 5, 6] },
+  { key: "q3", label: "Quý III", months: [7, 8, 9] },
+  { key: "q4", label: "Quý IV", months: [10, 11, 12] },
+];
 
 export function getRecordsForContent(ketQuaFull, contentKey) {
   if (!ketQuaFull) return [];
@@ -74,9 +93,9 @@ export function listKhoa(records) {
 export function computeRate(records, { thang, nam, khoa, contentKey }) {
   const filtered = (records || []).filter(
     (r) =>
-      (!thang || r.thang === thang) &&
-      (!nam || r.nam === nam) &&
-      (!khoa || r.donViDuocGiamSat === khoa)
+      matchFilter(r.thang, thang) &&
+      matchFilter(r.nam, nam) &&
+      matchFilter(r.donViDuocGiamSat, khoa)
   );
   const cheo = filtered
     .filter((r) => r.loai === LOAI.GS_CHEO)
@@ -157,7 +176,7 @@ export function buildCoverageDonut(ketQuaFull, { thang, nam }) {
   const totals = { [LOAI.TU_GS]: 0, [LOAI.GS_CHEO]: 0, [LOAI.NGOAI_KIEM]: 0 };
   CONTENT_KEYS.forEach((g) => {
     const records = getRecordsForContent(ketQuaFull, g).filter(
-      (r) => (!thang || r.thang === thang) && (!nam || r.nam === nam)
+      (r) => matchFilter(r.thang, thang) && matchFilter(r.nam, nam)
     );
     records.forEach((r) => {
       const n = pick(r, g)?.n || 0;
@@ -209,4 +228,113 @@ export function buildMonthOverMonth(ketQuaFull, { thang, nam }) {
     })
     .filter(Boolean)
     .sort((a, b) => b.delta - a.delta);
+}
+
+/**
+ * Tỷ lệ + số lượng tiêu chí con (chiều thuận) cho 1 nội dung, gộp toàn
+ * viện (hoặc theo khoa nếu truyền `khoa`), theo đúng công thức TB cộng
+ * Giám sát chéo / Ngoại kiểm như computeRate.
+ */
+export function computeSubCriteriaRates(records, { thang, nam, khoa, contentKey }) {
+  const filtered = (records || []).filter(
+    (r) =>
+      matchFilter(r.thang, thang) &&
+      matchFilter(r.nam, nam) &&
+      matchFilter(r.donViDuocGiamSat, khoa)
+  );
+  const cheo = filtered.filter((r) => r.loai === LOAI.GS_CHEO);
+  const ngoai = filtered.filter((r) => r.loai === LOAI.NGOAI_KIEM);
+
+  const sample = filtered.find((r) => (pick(r, contentKey)?.sub || []).length);
+  const subLabels = (sample ? pick(sample, contentKey).sub : []).map((s) => s.label);
+
+  return subLabels.map((label, idx) => {
+    const cheoItems = cheo
+      .map((r) => ({ rate: pick(r, contentKey)?.sub?.[idx]?.rate, n: pick(r, contentKey)?.n }))
+      .filter((x) => x.rate !== null && x.rate !== undefined);
+    const ngoaiItems = ngoai
+      .map((r) => ({ rate: pick(r, contentKey)?.sub?.[idx]?.rate, n: pick(r, contentKey)?.n }))
+      .filter((x) => x.rate !== null && x.rate !== undefined);
+    const rCheo = weightedAvg(cheoItems);
+    const rNgoai = weightedAvg(ngoaiItems);
+    const parts = [rCheo, rNgoai].filter((v) => v !== null && v !== undefined);
+    const rate = parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : null;
+    return { label, rate };
+  });
+}
+
+/**
+ * Tổng hợp 4 KPI đầu trang Tổng quan, tính trực tiếp từ "Kết quả full"
+ * (gộp toàn viện, không theo khoa) — kèm số lượt giám sát (n) và biến
+ * động so với tháng liền trước, để KPI card thể hiện nhiều thông tin
+ * hơn ngoài con số tỷ lệ.
+ */
+export function computeKpiSummary(ketQuaFull, { thang, nam }) {
+  let prevThang = thang - 1;
+  let prevNam = nam;
+  if (prevThang < 1) {
+    prevThang = 12;
+    prevNam = nam - 1;
+  }
+  return CONTENT_KEYS.map((key) => {
+    const records = getRecordsForContent(ketQuaFull, key);
+    const { rate, n } = computeRate(records, { thang, nam, khoa: null, contentKey: key });
+    const prev = computeRate(records, { thang: prevThang, nam: prevNam, khoa: null, contentKey: key });
+    const delta = rate !== null && prev.rate !== null ? rate - prev.rate : null;
+    return { key, rate, n, delta };
+  });
+}
+
+/**
+ * So sánh 1 khoa: tháng hiện tại / tháng trước / quý hiện tại / quý
+ * trước, cho từng nội dung — dùng cho biểu đồ so sánh kỳ ở trang
+ * "Chi tiết từng khoa".
+ */
+export function buildPeriodCompare(ketQuaFull, { khoa, thang, nam }) {
+  let prevThang = thang - 1;
+  let prevNam = nam;
+  if (prevThang < 1) {
+    prevThang = 12;
+    prevNam = nam - 1;
+  }
+  const curQuarter = QUARTERS.find((q) => q.months.includes(thang)) || QUARTERS[0];
+  const curQIdx = QUARTERS.indexOf(curQuarter);
+  let prevQuarter, prevQNam;
+  if (curQIdx === 0) {
+    prevQuarter = QUARTERS[3];
+    prevQNam = nam - 1;
+  } else {
+    prevQuarter = QUARTERS[curQIdx - 1];
+    prevQNam = nam;
+  }
+
+  const round = (v) => (v === null || v === undefined ? null : Math.round(v * 1000) / 10);
+
+  return CONTENT_KEYS.map((key) => {
+    const records = getRecordsForContent(ketQuaFull, key);
+    const current = computeRate(records, { thang, nam, khoa, contentKey: key }).rate;
+    const prevMonth = computeRate(records, { thang: prevThang, nam: prevNam, khoa, contentKey: key }).rate;
+    const currentQuarter = computeRate(records, { thang: curQuarter.months, nam, khoa, contentKey: key }).rate;
+    const prevQuarterRate = computeRate(records, { thang: prevQuarter.months, nam: prevQNam, khoa, contentKey: key }).rate;
+    return {
+      name: CONTENT_LABELS[key],
+      current: round(current),
+      prevMonth: round(prevMonth),
+      currentQuarter: round(currentQuarter),
+      prevQuarter: round(prevQuarterRate),
+    };
+  });
+}
+
+/** So sánh tỷ lệ tuân thủ theo 4 quý trong 1 năm, gộp toàn viện, cho từng nội dung. */
+export function buildQuarterComparison(ketQuaFull, { nam }) {
+  return QUARTERS.map((q) => {
+    const point = { quarter: q.label };
+    CONTENT_KEYS.forEach((key) => {
+      const records = getRecordsForContent(ketQuaFull, key);
+      const { rate } = computeRate(records, { thang: q.months, nam, khoa: null, contentKey: key });
+      point[key] = rate !== null ? Math.round(rate * 1000) / 10 : null;
+    });
+    return point;
+  });
 }

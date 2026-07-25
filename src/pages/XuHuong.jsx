@@ -10,7 +10,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { LoadingState, ErrorState } from "../components/LoadingState.jsx";
-import { MultiSelectKhoa } from "../components/MultiSelectKhoa.jsx";
+import { MultiSelect } from "../components/MultiSelect.jsx";
+import { InsightBox } from "../components/InsightBox.jsx";
 import {
   CONTENT_KEYS,
   CONTENT_LABELS,
@@ -19,8 +20,9 @@ import {
   getRecordsForContent,
   listKhoa,
 } from "../utils/aggregate.js";
+import { generateTrendInsights } from "../utils/insights.js";
 
-const LINE_COLORS = ["#5fb3a3", "#e3ab68", "#4a5578", "#d9897f", "#a373ac"];
+const LINE_COLORS = ["#5fb3a3", "#e3ab68", "#4a5578", "#d9897f", "#a373ac", "#6f93c2", "#7aab5e"];
 const MONTH_LABELS = Array.from({ length: 12 }, (_, i) => `T${i + 1}`);
 
 export function XuHuong({ hook }) {
@@ -41,6 +43,8 @@ export function XuHuong({ hook }) {
     return Array.from(set).sort();
   }, [hook.data, effectiveYear]);
 
+  // Rỗng => mặc định hiện 5 khoa đầu (tránh rối biểu đồ). Bấm "Chọn tất
+  // cả" trong ô lọc sẽ hiện toàn bộ khoa một cách tường minh.
   const activeKhoa = selectedKhoa.length > 0 ? selectedKhoa : allKhoa.slice(0, 5);
 
   const chartsBySection = useMemo(() => {
@@ -58,6 +62,8 @@ export function XuHuong({ hook }) {
       return { key, name: CONTENT_LABELS[key], data };
     });
   }, [hook.data, effectiveYear, activeKhoa]);
+
+  const insightLines = useMemo(() => generateTrendInsights(chartsBySection), [chartsBySection]);
 
   if (hook.loading) return <LoadingState />;
   if (hook.error) return <ErrorState message={hook.error} />;
@@ -78,10 +84,12 @@ export function XuHuong({ hook }) {
             </option>
           ))}
         </select>
-        <MultiSelectKhoa options={allKhoa} value={selectedKhoa} onChange={setSelectedKhoa} placeholder="Mặc định 5 khoa đầu" />
+        <MultiSelect options={allKhoa} value={selectedKhoa} onChange={setSelectedKhoa} placeholder="Mặc định 5 khoa đầu" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 20 }}>
+      <InsightBox lines={insightLines} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 20, marginTop: 20 }}>
         {chartsBySection.map((sec) => (
           <div className="card" key={sec.key}>
             <h3 className="card-title">{sec.name}</h3>
