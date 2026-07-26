@@ -138,6 +138,7 @@ export function Overview({ loiViPham, ketQuaFull }) {
       <div className="page-header">
         <p className="page-eyebrow">Tổng quan</p>
         <h1 className="page-title">Kết quả giám sát tuân thủ QT-QĐ</h1>
+        <p className="page-desc">Tóm tắt điều hành, KPI theo từng nội dung, xu hướng theo quý và các chỉ báo cần lưu ý — cập nhật theo kỳ đang chọn.</p>
       </div>
 
       <ExecutiveSummary summary={execSummary} currentLabel={period.currentLabel} />
@@ -179,18 +180,6 @@ export function Overview({ loiViPham, ketQuaFull }) {
             />
           );
         })}
-      </div>
-
-      <div style={{ marginTop: 20 }}>
-        <InsightBox lines={insightLines} title={`Nhận xét tự động — ${period.currentLabel}`} />
-      </div>
-
-      <h2 className="section-title">Cảnh báo</h2>
-      <AlertPanel alerts={alerts} />
-
-      <div className="card" style={{ marginTop: 20 }}>
-        <h3 className="card-title">Khoa cần ưu tiên giám sát</h3>
-        <PriorityKhoaCard data={priorityKhoa} />
       </div>
 
       <div className="card" style={{ marginTop: 20 }}>
@@ -277,6 +266,18 @@ export function Overview({ loiViPham, ketQuaFull }) {
             </div>
           )}
         </div>
+      </div>
+
+      <h2 className="section-title">Nhận xét & cảnh báo</h2>
+
+      <InsightBox lines={insightLines} title={`Nhận xét tự động — ${period.currentLabel}`} />
+
+      <h3 className="card-title" style={{ marginTop: 24 }}>Cảnh báo</h3>
+      <AlertPanel alerts={alerts} />
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3 className="card-title">Khoa cần ưu tiên giám sát</h3>
+        <PriorityKhoaCard data={priorityKhoa} />
       </div>
     </div>
   );

@@ -55,7 +55,7 @@ export function ExecutiveSummary({ summary, currentLabel }) {
             )}
           </div>
         </div>
-        <div className="exec-item" style={{ gridColumn: "1 / -1" }}>
+        <div className="exec-item exec-item-full">
           <div className="exec-item-label"><IconShield width={15} height={15} /> Hành động ưu tiên Ban QLCL cần triển khai</div>
           <div className="exec-item-body">
             <ul>

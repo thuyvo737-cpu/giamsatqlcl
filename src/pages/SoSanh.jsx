@@ -107,7 +107,7 @@ export function SoSanh({ hook }) {
         <p className="page-eyebrow">So sánh</p>
         <h1 className="page-title">So sánh hình thức giám sát</h1>
         <p className="page-desc">
-          Mặc định so sánh Giám sát chéo với Ngoại kiểm, gộp toàn viện theo từng nội dung.
+          Mặc định so sánh Giám sát chéo với Ngoại kiểm, gộp toàn viện theo từng nội dung, kèm mức chênh lệch.
           <br />
           Chọn khoa cụ thể để xem chi tiết riêng từng khoa.
         </p>
@@ -154,10 +154,6 @@ export function SoSanh({ hook }) {
         )}
       </div>
 
-      <div style={{ marginTop: 20 }}>
-        <InsightBox lines={insightLines} />
-      </div>
-
       {selectedKhoa.length > 0 && (
         <>
           <h2 className="section-title" style={{ marginTop: 28 }}>Chi tiết theo từng khoa đã chọn</h2>
@@ -183,6 +179,9 @@ export function SoSanh({ hook }) {
           <TrendCard key={sec.key} sec={sec} />
         ))}
       </div>
+
+      <h2 className="section-title" style={{ marginTop: 28 }}>Nhận xét tự động</h2>
+      <InsightBox lines={insightLines} />
     </div>
   );
 }

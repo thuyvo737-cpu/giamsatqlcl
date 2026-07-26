@@ -142,7 +142,7 @@ export function KetQua({ hook }) {
       <div className="page-header">
         <p className="page-eyebrow">Kết quả giám sát</p>
         <h1 className="page-title">Kết quả chi tiết</h1>
-        <p className="page-desc">Xem tỷ lệ tuân thủ theo khoa, có thể lọc nhiều khoa/tháng/năm cùng lúc.</p>
+        <p className="page-desc">Xếp hạng khoa, so sánh với kỳ trước và bản đồ nhiệt theo tháng — lọc theo nhiều khoa/tháng/năm cùng lúc.</p>
       </div>
 
       <div className="control-row">
@@ -159,8 +159,6 @@ export function KetQua({ hook }) {
       <p className="badge-updated" style={{ display: "block", marginBottom: 16 }}>
         {displayKhoa.length} / {allKhoaFull.length} khoa · {period.currentLabel}
       </p>
-
-      <InsightBox lines={insightLines} title={`Nhận xét tự động — ${focusLabel || "toàn viện"}`} />
 
       <div className="card" style={{ marginTop: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
@@ -225,6 +223,9 @@ export function KetQua({ hook }) {
         <h3 className="card-title">Biểu đồ chi tiết theo từng tiêu chí</h3>
         <MonthlyDetailCharts ketQuaFullData={hook.data} month={thangFilter} year={namFilter} khoa={khoaFilter} />
       </div>
+
+      <h2 className="section-title">Nhận xét tự động</h2>
+      <InsightBox lines={insightLines} title={`Nhận xét tự động — ${focusLabel || "toàn viện"}`} />
     </div>
   );
 }

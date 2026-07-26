@@ -87,6 +87,7 @@ export function XuHuong({ hook }) {
       <div className="page-header">
         <p className="page-eyebrow">Xu hướng</p>
         <h1 className="page-title">Xu hướng tuân thủ theo tháng</h1>
+        <p className="page-desc">Biến động tỷ lệ tuân thủ theo tháng cho từng nội dung, kèm dự báo tháng kế tiếp.</p>
       </div>
 
       <div className="control-row">
@@ -100,8 +101,6 @@ export function XuHuong({ hook }) {
         </select>
         <MultiSelect options={allKhoa} value={selectedKhoa} onChange={setSelectedKhoa} placeholder="Mặc định 5 khoa đầu" />
       </div>
-
-      <InsightBox lines={insightLines} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 20, marginTop: 20 }}>
         {chartsBySection.map((sec) => (
@@ -148,6 +147,9 @@ export function XuHuong({ hook }) {
           </div>
         ))}
       </div>
+
+      <h2 className="section-title" style={{ marginTop: 28 }}>Nhận xét tự động</h2>
+      <InsightBox lines={insightLines} />
     </div>
   );
 }

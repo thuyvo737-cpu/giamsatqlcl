@@ -3,7 +3,42 @@
 > Dán toàn bộ nội dung file này vào đầu cuộc trò chuyện mới (kèm file
 > zip code đính kèm) để Claude nắm lại đầy đủ bối cảnh và tiếp tục hỗ trợ.
 
-## 0. Cập nhật lớn gần nhất (nâng cấp UI/UX ver3 — theo phong cách Power BI/Stripe/Notion)
+## 0. Cập nhật gần nhất (bản vá bố cục — không đổi logic tính toán)
+
+- **Executive Summary**: `.exec-grid` đổi từ CSS Grid (`auto-fit`) sang
+  Flexbox (`flex-wrap` + `flex: 1 1 240px`) — tránh lỗi để trống 1 hàng
+  khi số ô (5 ô) không chia hết cho số cột grid tính tự động; giờ các ô
+  luôn giãn lấp đầy hàng.
+- **Trang Tổng quan**: chuyển khối "Nhận xét tự động", "Cảnh báo", "Khoa
+  cần ưu tiên giám sát" xuống **cuối trang** (sau bảng Pareto/vi phạm),
+  để phần đầu trang chỉ còn Executive Summary + KPI + biểu đồ, đỡ dày
+  đặc chữ xen giữa biểu đồ.
+- **Tất cả các trang khác** (Kết quả chi tiết, So sánh hình thức GS, Xu
+  hướng, Lỗi vi phạm): khối "Nhận xét tự động" cũng chuyển xuống **cuối
+  trang** tương tự, và văn phong đồng bộ với trang Tổng quan (dùng động
+  từ mô tả xu hướng: "tiếp tục cải thiện", "sụt giảm đáng kể"...).
+- Câu "Toàn viện/khoa đạt tỷ lệ tuân thủ trung bình..." (gộp cả 5 nội
+  dung) đã được rà soát — không còn xuất hiện trong
+  `generateContentInsights()`.
+- Rà soát lại câu mô tả dưới tiêu đề (`page-desc`) của cả 5 trang cho
+  khớp với tính năng hiện tại (VD: Kết quả chi tiết nhắc tới xếp hạng +
+  bản đồ nhiệt; Lỗi vi phạm nhắc tới Pareto + khuyến nghị).
+
+## 0.1 Cập nhật trước đó (bản vá nhỏ — Khoa cần ưu tiên giám sát)
+
+- Sửa lỗi logic: trước đây `buildPriorityKhoa()` luôn cắt cứng Top 5
+  khoa có điểm cao nhất, kể cả khi điểm đó rất thấp (Xanh — ổn định),
+  gây mâu thuẫn hiển thị ("cần ưu tiên" nhưng lại "ổn định"). Giờ chỉ
+  đưa vào danh sách khoa nào có **ít nhất 1 yếu tố đáng chú ý** (tỷ lệ
+  tuân thủ <80%, đang giảm ≥3 điểm %, có tháng phát sinh lỗi, hoặc có
+  lỗi tái diễn) — không giới hạn số dòng cố định, danh sách dài/ngắn
+  tuỳ theo dữ liệu thực tế. Không cần tỷ lệ thấp mới được liệt kê: chỉ
+  cần có lỗi vi phạm/tái diễn là đủ điều kiện xuất hiện.
+- Bỏ nhãn mô tả màu ("Xanh — ổn định", "Vàng — theo dõi"...) ở
+  `PriorityKhoaCard.jsx` — giờ chỉ hiện điểm số kèm màu (badge "XX
+  điểm"), không còn dòng chữ diễn giải màu gây rối.
+
+## 0.1 Nâng cấp UI/UX ver3 (Power BI/Stripe/Notion)
 
 > Đợt này CHỈ đổi giao diện/trình bày, KHÔNG đổi database/API/công thức
 > tính toán — đúng yêu cầu gốc của người dùng.

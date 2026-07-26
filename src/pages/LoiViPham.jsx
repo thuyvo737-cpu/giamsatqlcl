@@ -21,14 +21,10 @@ export function LoiViPham({ hook }) {
         <p className="page-eyebrow">Lỗi vi phạm</p>
         <h1 className="page-title">Các lỗi vi phạm trong giám sát</h1>
         <p className="page-desc">
-          Mỗi ô trong bảng Khoa × Tháng bên dưới là mã số loại lỗi phát sinh tháng đó, tra theo bảng chú giải.
+          Thống kê lỗi vi phạm theo Pareto kèm khuyến nghị cải tiến tự động, và chi tiết theo Khoa × Tháng.
           <br />
-          Cột "Tổng" đếm số tháng có phát sinh lỗi, không phải tổng số lượt lỗi.
+          Mỗi ô trong bảng Khoa × Tháng là mã số loại lỗi phát sinh tháng đó, tra theo bảng chú giải; cột "Tổng" đếm số tháng có phát sinh lỗi.
         </p>
-      </div>
-
-      <div style={{ marginBottom: 20 }}>
-        <InsightBox lines={insightLines} />
       </div>
 
       <div className="card">
@@ -122,6 +118,9 @@ export function LoiViPham({ hook }) {
           </table>
         </div>
       </div>
+
+      <h2 className="section-title" style={{ marginTop: 28 }}>Nhận xét tự động</h2>
+      <InsightBox lines={insightLines} />
     </div>
   );
 }

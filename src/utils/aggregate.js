@@ -489,7 +489,7 @@ export function buildAlerts(ketQuaFull, loiViPhamData, { nam }) {
  * tháng trước, số lỗi vi phạm, số lần lỗi tái diễn — hoàn toàn từ dữ
  * liệu đã có, KHÔNG phải chỉ số chính thức đã được QLCL phê duyệt.
  */
-export function buildPriorityKhoa(ketQuaFull, loiViPhamData, { nam }, topN = 5) {
+export function buildPriorityKhoa(ketQuaFull, loiViPhamData, { nam }) {
   let latestMonth = 0;
   CONTENT_KEYS.forEach((key) => {
     getRecordsForContent(ketQuaFull, key).forEach((r) => {
@@ -541,10 +541,12 @@ export function buildPriorityKhoa(ketQuaFull, loiViPhamData, { nam }, topN = 5) 
     if (violationCount > 0) reasons.push(`${violationCount} tháng có lỗi`);
     if (repeatCount > 0) reasons.push(`${repeatCount} lỗi tái diễn`);
 
-    return { khoa, score, avgRate, avgDelta, violationCount, repeatCount, reason: reasons.join(", ") || "không có yếu tố nổi bật" };
+    return { khoa, score, avgRate, avgDelta, violationCount, repeatCount, hasIssue: reasons.length > 0, reason: reasons.join(", ") };
   });
 
-  return scored.sort((a, b) => b.score - a.score).slice(0, topN);
+  return scored
+    .filter((k) => k.hasIssue)
+    .sort((a, b) => b.score - a.score);
 }
 
 /**

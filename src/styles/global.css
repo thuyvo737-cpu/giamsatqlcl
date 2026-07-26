@@ -671,16 +671,21 @@ tbody tr.total-row td.khoa-cell {
 }
 
 .exec-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 14px;
 }
 
 .exec-item {
+  flex: 1 1 240px;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 10px;
   padding: 14px 16px;
+}
+
+.exec-item.exec-item-full {
+  flex: 1 1 100%;
 }
 
 .exec-item-label {

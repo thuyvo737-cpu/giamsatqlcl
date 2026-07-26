@@ -1,8 +1,8 @@
-import { riskColor, riskLabel } from "../utils/chartTheme.js";
+import { riskColor } from "../utils/chartTheme.js";
 
 export function PriorityKhoaCard({ data }) {
   if (!data || !data.length) {
-    return <div className="state-box">Chưa có đủ dữ liệu để tính điểm ưu tiên giám sát.</div>;
+    return <div className="no-alert-box">Không có khoa nào cần ưu tiên giám sát nổi bật trong kỳ này.</div>;
   }
   return (
     <div>
@@ -18,7 +18,7 @@ export function PriorityKhoaCard({ data }) {
               <div className="priority-score-fill" style={{ width: `${k.score}%`, background: riskColor(k.score) }} />
             </div>
             <span className="risk-badge" style={{ background: riskColor(k.score) }}>
-              {riskLabel(k.score)}
+              {k.score} điểm
             </span>
           </div>
         ))}
