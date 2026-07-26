@@ -20,8 +20,8 @@ export function MonthOverMonthTable({ data }) {
         <thead>
           <tr>
             <th>Khoa</th>
-            <th>Tháng trước</th>
-            <th>Tháng này</th>
+            <th>Kỳ trước</th>
+            <th>Kỳ này</th>
             <th>Chênh lệch</th>
           </tr>
         </thead>

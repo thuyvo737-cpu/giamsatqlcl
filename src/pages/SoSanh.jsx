@@ -105,7 +105,11 @@ export function SoSanh({ hook }) {
       <div className="page-header">
         <p className="page-eyebrow">So sánh</p>
         <h1 className="page-title">So sánh hình thức giám sát</h1>
-        <p className="page-desc">Mặc định so sánh Giám sát chéo với Ngoại kiểm gộp toàn viện theo từng nội dung. Chọn khoa cụ thể để xem chi tiết riêng.</p>
+        <p className="page-desc">
+          Mặc định so sánh Giám sát chéo với Ngoại kiểm, gộp toàn viện theo từng nội dung.
+          <br />
+          Chọn khoa cụ thể để xem chi tiết riêng từng khoa.
+        </p>
       </div>
 
       <div className="control-row">

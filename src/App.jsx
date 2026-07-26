@@ -31,7 +31,7 @@ export default function App() {
       <Nav active={page} onChange={setPage} syncStatus={syncStatus} />
       <main className="main">
         {page === "overview" && <Overview loiViPham={loiViPham} ketQuaFull={ketQuaFull} />}
-        {page === "ketqua" && <KetQua hook={ketQuaFull} loiViPham={loiViPham} />}
+        {page === "ketqua" && <KetQua hook={ketQuaFull} />}
         {page === "sosanh" && <SoSanh hook={ketQuaFull} />}
         {page === "xuhuong" && <XuHuong hook={ketQuaFull} />}
         {page === "loivipham" && <LoiViPham hook={loiViPham} />}

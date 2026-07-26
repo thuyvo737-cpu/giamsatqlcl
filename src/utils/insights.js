@@ -13,76 +13,96 @@ function fmtPctPoint(v) {
   return `${Math.round(Math.abs(v) * 1000) / 10} điểm %`;
 }
 
-export function generateInsights({
-  khoaRates,
-  distribution,
-  monthOverMonth,
-  violationLegend,
-  thang,
-  nam,
+/**
+ * Nhận xét tự động chi tiết theo từng nội dung — dùng cho cả trang Tổng
+ * quan (toàn viện) và trang Kết quả chi tiết (khi có/không lọc khoa cụ
+ * thể). Không còn kiểu nhận xét "vô tri" (ví dụ so khoa đang lọc với
+ * chính nó) — khi có `khoaFocus`, mọi so sánh đều xoay quanh khoa đó so
+ * với MỤC TIÊU và so với KỲ TRƯỚC, thay vì so với toàn viện.
+ */
+export function generateContentInsights({
+  contentSummaries,
+  currentLabel,
+  previousLabel,
+  khoaFocus = null,
+  target = 0.8,
+  repeatedViolations = null,
 }) {
   const lines = [];
+  const valid = (contentSummaries || []).filter((c) => c.rate !== null && c.rate !== undefined);
+  if (!valid.length) {
+    return [`Chưa đủ dữ liệu ${khoaFocus ? `của ${khoaFocus} ` : ""}trong ${currentLabel} để đưa ra nhận xét.`];
+  }
 
-  if (khoaRates && khoaRates.length) {
-    const sorted = [...khoaRates].sort((a, b) => b.rate - a.rate);
-    const best = sorted[0];
-    const worst = sorted[sorted.length - 1];
-    if (best) {
-      lines.push(
-        `Khoa dẫn đầu toàn viện tháng ${thang}/${nam} là ${best.khoa}, tỷ lệ tuân thủ chung đạt ${fmtPct(best.rate)}.`
-      );
+  // 1) Tỷ lệ trung bình 5 nội dung + so với kỳ trước
+  const avgRate = valid.reduce((s, c) => s + c.rate, 0) / valid.length;
+  const withDelta = valid.filter((c) => c.delta !== null && c.delta !== undefined);
+  const avgDelta = withDelta.length ? withDelta.reduce((s, c) => s + c.delta, 0) / withDelta.length : null;
+  const deltaText = (d) => {
+    if (d === null || d === undefined) return "chưa đủ dữ liệu để so sánh";
+    if (Math.abs(d) < 0.001) return "không đổi";
+    return `${d > 0 ? "tăng" : "giảm"} ${fmtPctPoint(d)}`;
+  };
+
+  if (khoaFocus) {
+    const reached = avgRate >= target;
+    lines.push(
+      `${khoaFocus}: tỷ lệ tuân thủ trung bình 5 nội dung trong ${currentLabel} đạt ${fmtPct(avgRate)} — ${
+        reached ? "đã đạt" : "chưa đạt"
+      } mục tiêu ${Math.round(target * 100)}%, ${deltaText(avgDelta)} so với ${previousLabel}.`
+    );
+  } else {
+    lines.push(
+      `Tỷ lệ tuân thủ trung bình 5 nội dung toàn viện trong ${currentLabel} đạt ${fmtPct(avgRate)}, ${deltaText(
+        avgDelta
+      )} so với ${previousLabel}.`
+    );
+  }
+
+  // 2) Chi tiết từng nội dung
+  valid.forEach((c) => {
+    const parts = [`${c.label}: ${fmtPct(c.rate)} (${deltaText(c.delta)} so với ${previousLabel})`];
+    if (khoaFocus) {
+      parts.push(c.rate >= target ? "đã đạt mục tiêu" : `chưa đạt mục tiêu ${Math.round(target * 100)}%`);
+    } else if (c.topKhoa) {
+      parts.push(`khoa cao nhất: ${c.topKhoa.khoa} (${fmtPct(c.topKhoa.rate)})`);
     }
-    if (worst && worst.khoa !== best?.khoa) {
-      lines.push(`Khoa cần lưu ý nhất là ${worst.khoa}, tỷ lệ chỉ đạt ${fmtPct(worst.rate)}.`);
+    if (c.worstSub && c.worstSub.rate !== null) {
+      parts.push(`cần cải thiện tiêu chí "${c.worstSub.label}" (${fmtPct(c.worstSub.rate)})`);
     }
-    const under70 = sorted.filter((k) => k.rate < 0.7);
-    if (under70.length) {
-      const names = under70
-        .slice(0, 5)
-        .map((k) => `${k.khoa} (${fmtPct(k.rate)})`)
+    if (c.bestImprovedSub && c.bestImprovedSub.delta > 0.01) {
+      parts.push(`cải thiện nổi bật ở "${c.bestImprovedSub.label}" (+${fmtPctPoint(c.bestImprovedSub.delta)})`);
+    }
+    lines.push(parts.join(" — ") + ".");
+  });
+
+  // 3) Lỗi vi phạm lặp lại trong kỳ
+  if (repeatedViolations !== null) {
+    if (repeatedViolations.length) {
+      const top = repeatedViolations
+        .slice(0, 3)
+        .map((v) => `"${v.name}" (${v.count} lượt)`)
         .join(", ");
-      lines.push(
-        `Có ${under70.length} khoa đang dưới ngưỡng 70%: ${names}${under70.length > 5 ? "…" : ""}.`
-      );
+      lines.push(`Lỗi vi phạm lặp lại nhiều lần trong kỳ: ${top}.`);
     } else {
-      lines.push("Không có khoa nào dưới ngưỡng 70% trong tháng này.");
+      lines.push("Không ghi nhận lỗi vi phạm lặp lại nổi bật trong kỳ này.");
     }
   }
 
-  if (distribution && distribution.length) {
-    const total = distribution.reduce((s, b) => s + b.count, 0);
-    const good = distribution.find((b) => b.label === "≥ 90%")?.count || 0;
-    if (total) {
-      lines.push(
-        `${good}/${total} khoa (${Math.round((good / total) * 100)}%) đạt tỷ lệ tuân thủ từ 90% trở lên.`
-      );
+  // 4) Đề xuất kiến nghị — dựa trên nội dung/tiêu chí thấp nhất và lỗi phổ biến nhất
+  const worstContent = [...valid].sort((a, b) => a.rate - b.rate)[0];
+  const recParts = [];
+  if (worstContent) {
+    recParts.push(`rà soát lại quy trình "${worstContent.label}" (đang thấp nhất, ${fmtPct(worstContent.rate)})`);
+    if (worstContent.worstSub) {
+      recParts.push(`đặc biệt tiêu chí "${worstContent.worstSub.label}"`);
     }
   }
-
-  if (monthOverMonth && monthOverMonth.length) {
-    const up = monthOverMonth[0];
-    const down = monthOverMonth[monthOverMonth.length - 1];
-    if (up && up.delta > 0.001) {
-      lines.push(
-        `${up.khoa} cải thiện nhiều nhất so với tháng trước, tăng ${fmtPct(up.delta)} điểm phần trăm.`
-      );
-    }
-    if (down && down.delta < -0.001) {
-      lines.push(
-        `${down.khoa} giảm nhiều nhất so với tháng trước, giảm ${fmtPct(Math.abs(down.delta))} điểm phần trăm — cần kiểm tra lại nguyên nhân.`
-      );
-    }
+  if (repeatedViolations && repeatedViolations.length) {
+    recParts.push(`nhắc nhở khắc phục lỗi "${repeatedViolations[0].name}" đang lặp lại nhiều nhất`);
   }
-
-  if (violationLegend && violationLegend.length) {
-    const top = violationLegend.filter((v) => v.count > 0)[0];
-    if (top) {
-      lines.push(`Loại lỗi vi phạm phổ biến nhất là "${top.name}" với ${top.count} lượt ghi nhận.`);
-    }
-  }
-
-  if (!lines.length) {
-    lines.push("Chưa đủ dữ liệu trong khoảng thời gian đang chọn để đưa ra nhận xét.");
+  if (recParts.length) {
+    lines.push(`Đề xuất: ${recParts.join("; ")}.`);
   }
 
   return lines;

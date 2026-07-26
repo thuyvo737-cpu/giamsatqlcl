@@ -46,7 +46,7 @@ export function MonthlyDetailCharts({ ketQuaFullData, month, year, khoa = null }
   }, [ketQuaFullData, month, year, khoa]);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(440px, 1fr))", gap: 20 }}>
       {chartsBySection.map((sec) => (
         <div key={sec.key}>
           <h4
@@ -75,11 +75,11 @@ export function MonthlyDetailCharts({ ketQuaFullData, month, year, khoa = null }
           {sec.data.length === 0 ? (
             <div className="state-box">Chưa có dữ liệu.</div>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={sec.data} margin={{ left: -10, top: 16 }}>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={sec.data} margin={{ left: 8, right: 8, top: 20, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 9.5 }} interval={0} angle={-35} textAnchor="end" height={68} />
-                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} width={40} />
+                <XAxis dataKey="label" tick={{ fontSize: 11.5 }} interval={0} angle={-40} textAnchor="end" height={110} />
+                <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} width={44} />
                 <Tooltip formatter={(v) => (v === null ? "—" : `${v}%`)} />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                   {sec.data.map((d, i) => (

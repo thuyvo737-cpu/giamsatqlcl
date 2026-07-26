@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LoadingState, ErrorState } from "../components/LoadingState.jsx";
 import { StatCard } from "../components/StatCard.jsx";
 import { MonthlyDetailCharts } from "../components/MonthlyDetailCharts.jsx";
-import { MonthYearFilter } from "../components/MonthYearFilter.jsx";
-import { Heatmap } from "../components/Heatmap.jsx";
+import { MultiSelect } from "../components/MultiSelect.jsx";
 import { ParetoChart } from "../components/ParetoChart.jsx";
 import { DistributionChart } from "../components/DistributionChart.jsx";
 import { CoverageDonut } from "../components/CoverageDonut.jsx";
@@ -16,70 +15,91 @@ import {
   CONTENT_COLORS,
   aggregateAllKhoa,
   buildCoverageDonut,
+  buildContentSummary,
   buildDistribution,
-  buildHeatmapMatrix,
-  buildMonthOverMonth,
-  buildQuarterComparison,
-  computeKpiSummary,
+  buildMonthOverMonthByContent,
+  buildQuarterComparisonByContent,
+  findRepeatedViolations,
   getAvailableYears,
+  resolvePeriod,
 } from "../utils/aggregate.js";
-import { generateInsights } from "../utils/insights.js";
+import { generateContentInsights } from "../utils/insights.js";
 
-// 4 KPI đầu trang luôn theo đúng thứ tự nhận dạng/vòng tay/té ngã/ATPT
 const KPI_ORDER = ["nhanDang", "vongTay", "teNga", "atpt"];
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` }));
 
 export function Overview({ loiViPham, ketQuaFull }) {
   const now = new Date();
-  const [month, setMonth] = useState(null);
+  const [selectedMonths, setSelectedMonths] = useState([now.getMonth() + 1]);
   const [year, setYear] = useState(null);
-  const [heatmapContent, setHeatmapContent] = useState(CONTENT_KEYS[0]);
 
   const years = useMemo(() => getAvailableYears(ketQuaFull.data), [ketQuaFull.data]);
-  const effectiveMonth = month ?? now.getMonth() + 1;
-  const effectiveYear =
-    year ?? (years.includes(now.getFullYear()) ? now.getFullYear() : years[0] || now.getFullYear());
-  const isAuto = month === null && year === null;
+  useEffect(() => {
+    if (years.length && year === null) setYear(years.includes(now.getFullYear()) ? now.getFullYear() : years[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [years]);
+  const effectiveYear = year ?? years[0] ?? now.getFullYear();
 
-  const kpis = useMemo(
+  const period = useMemo(() => resolvePeriod(selectedMonths, effectiveYear), [selectedMonths, effectiveYear]);
+
+  const contentSummaries = useMemo(
     () =>
       ketQuaFull.data
-        ? computeKpiSummary(ketQuaFull.data, { thang: effectiveMonth, nam: effectiveYear })
+        ? buildContentSummary(ketQuaFull.data, {
+            thang: period.thang,
+            nam: effectiveYear,
+            khoa: null,
+            prevThang: period.prevThang,
+            prevNam: period.prevNam,
+          })
         : [],
-    [ketQuaFull.data, effectiveMonth, effectiveYear]
+    [ketQuaFull.data, period, effectiveYear]
   );
 
   const khoaRates = useMemo(
-    () => (ketQuaFull.data ? aggregateAllKhoa(ketQuaFull.data, { thang: effectiveMonth, nam: effectiveYear }) : []),
-    [ketQuaFull.data, effectiveMonth, effectiveYear]
+    () => (ketQuaFull.data ? aggregateAllKhoa(ketQuaFull.data, { thang: period.thang, nam: effectiveYear }) : []),
+    [ketQuaFull.data, period, effectiveYear]
   );
   const distribution = useMemo(() => buildDistribution(khoaRates), [khoaRates]);
   const donutData = useMemo(
-    () => (ketQuaFull.data ? buildCoverageDonut(ketQuaFull.data, { thang: effectiveMonth, nam: effectiveYear }) : []),
-    [ketQuaFull.data, effectiveMonth, effectiveYear]
-  );
-  const monthOverMonth = useMemo(
-    () => (ketQuaFull.data ? buildMonthOverMonth(ketQuaFull.data, { thang: effectiveMonth, nam: effectiveYear }) : []),
-    [ketQuaFull.data, effectiveMonth, effectiveYear]
-  );
-  const heatmapMatrix = useMemo(
-    () => (ketQuaFull.data ? buildHeatmapMatrix(ketQuaFull.data, heatmapContent, effectiveYear) : []),
-    [ketQuaFull.data, heatmapContent, effectiveYear]
+    () => (ketQuaFull.data ? buildCoverageDonut(ketQuaFull.data, { thang: period.thang, nam: effectiveYear }) : []),
+    [ketQuaFull.data, period, effectiveYear]
   );
   const quarterData = useMemo(
-    () => (ketQuaFull.data ? buildQuarterComparison(ketQuaFull.data, { nam: effectiveYear }) : []),
+    () => (ketQuaFull.data ? buildQuarterComparisonByContent(ketQuaFull.data, { nam: effectiveYear }) : []),
     [ketQuaFull.data, effectiveYear]
   );
+
+  const [momContent, setMomContent] = useState(CONTENT_KEYS[0]);
+  const monthOverMonth = useMemo(
+    () =>
+      ketQuaFull.data
+        ? buildMonthOverMonthByContent(ketQuaFull.data, {
+            thang: period.thang,
+            nam: effectiveYear,
+            prevThang: period.prevThang,
+            prevNam: period.prevNam,
+            contentKey: momContent,
+          })
+        : [],
+    [ketQuaFull.data, period, effectiveYear, momContent]
+  );
+
+  const repeatedViolations = useMemo(() => {
+    const months = Array.isArray(period.thang) ? period.thang : period.thang ? [period.thang] : [];
+    return findRepeatedViolations(loiViPham.data, months);
+  }, [loiViPham.data, period]);
+
   const insightLines = useMemo(
     () =>
-      generateInsights({
-        khoaRates,
-        distribution,
-        monthOverMonth,
-        violationLegend: loiViPham.data?.legend,
-        thang: effectiveMonth,
-        nam: effectiveYear,
+      generateContentInsights({
+        contentSummaries,
+        currentLabel: period.currentLabel,
+        previousLabel: period.previousLabel,
+        khoaFocus: null,
+        repeatedViolations,
       }),
-    [khoaRates, distribution, monthOverMonth, loiViPham.data, effectiveMonth, effectiveYear]
+    [contentSummaries, period, repeatedViolations]
   );
 
   if (ketQuaFull.loading) return <LoadingState />;
@@ -94,87 +114,77 @@ export function Overview({ loiViPham, ketQuaFull }) {
         <h1 className="page-title">Kết quả giám sát tuân thủ QT-QĐ</h1>
       </div>
 
-      <div className="grid grid-4">
+      {/* ---- Bộ lọc lên đầu tiên ---- */}
+      <div className="card">
+        <h3 className="card-title">Chọn khoảng thời gian xem</h3>
+        <div className="control-row" style={{ marginBottom: 0 }}>
+          <MultiSelect options={MONTH_OPTIONS} value={selectedMonths} onChange={setSelectedMonths} placeholder="Tháng" searchable={false} />
+          <select className="select" value={effectiveYear} onChange={(e) => setYear(Number(e.target.value))}>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                Năm {y}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="badge-updated" style={{ marginTop: 10, display: "block" }}>
+          Đang xem {period.currentLabel}
+          {selectedMonths.length === 3 && period.mode !== "quarter" ? " (tổ hợp 3 tháng không khớp 1 quý chuẩn)" : ""}
+          {" · "}
+          {selectedMonths.length ? "chọn nhiều tháng liền 1 quý để xem so sánh theo quý" : "đang xem cả năm"}
+        </p>
+      </div>
+
+      <div className="grid grid-4" style={{ marginTop: 20 }}>
         {KPI_ORDER.map((key) => {
-          const k = kpis.find((x) => x.key === key);
+          const c = contentSummaries.find((x) => x.key === key);
           return (
             <StatCard
               key={key}
               label={CONTENT_LABELS[key]}
-              value={k?.rate ?? null}
-              n={k?.n ?? null}
-              delta={k?.delta ?? null}
+              value={c?.rate ?? null}
+              n={c?.n ?? null}
+              delta={c?.delta ?? null}
               color={CONTENT_COLORS[key]}
             />
           );
         })}
       </div>
 
-      {/* ---- Bộ lọc bên trái + Nhận xét tự động bên phải ---- */}
-      <div className="grid grid-2" style={{ marginTop: 24, alignItems: "stretch" }}>
-        <div className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <h3 className="card-title">Chọn khoảng thời gian xem</h3>
-          <MonthYearFilter
-            month={effectiveMonth}
-            year={effectiveYear}
-            years={years}
-            isAuto={isAuto}
-            onMonthChange={setMonth}
-            onYearChange={setYear}
-            onReset={() => {
-              setMonth(null);
-              setYear(null);
-            }}
-          />
-          <span className="badge-updated" style={{ marginTop: 8, display: "block" }}>
-            {isAuto ? `Tự động — Tháng ${effectiveMonth}/${effectiveYear} (hiện tại)` : `Đang xem Tháng ${effectiveMonth}/${effectiveYear}`}
-          </span>
-        </div>
-        <InsightBox lines={insightLines} title={`Nhận xét tự động — Tháng ${effectiveMonth}/${effectiveYear}`} />
+      <div style={{ marginTop: 20 }}>
+        <InsightBox lines={insightLines} title={`Nhận xét tự động — ${period.currentLabel}`} />
       </div>
 
       <div className="card" style={{ marginTop: 20 }}>
         <h3 className="card-title">So sánh theo quý — Năm {effectiveYear}</h3>
-        {ketQuaFull.loading ? <LoadingState /> : <QuarterCompareChart data={quarterData} />}
+        <QuarterCompareChart data={quarterData} />
       </div>
 
       <div className="grid grid-2" style={{ marginTop: 20 }}>
         <div className="card">
           <h3 className="card-title">Phân bố khoa theo mức tuân thủ</h3>
-          {ketQuaFull.loading ? <LoadingState /> : <DistributionChart buckets={distribution} />}
+          <DistributionChart buckets={distribution} />
         </div>
         <div className="card">
           <h3 className="card-title">Cơ cấu hình thức giám sát</h3>
-          {ketQuaFull.loading ? <LoadingState /> : <CoverageDonut data={donutData} />}
+          <p className="badge-updated" style={{ marginBottom: 10, display: "block" }}>
+            Giám sát chéo và Ngoại kiểm (không tính Tự giám sát vào kết quả cuối)
+          </p>
+          <CoverageDonut data={donutData} />
         </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 20 }}>
-        <h3 className="card-title">Biến động so với tháng trước</h3>
-        {ketQuaFull.loading ? <LoadingState /> : <MonthOverMonthTable data={monthOverMonth} />}
-      </div>
-
-      {/* ---- Biểu đồ chi tiết theo tiêu chí con — đưa lên trước Heatmap ---- */}
-      <div className="card" style={{ marginTop: 20 }}>
-        <h3 className="card-title" style={{ marginBottom: 4 }}>
-          Biểu đồ chi tiết theo từng tiêu chí
-        </h3>
-        <p className="badge-updated" style={{ marginBottom: 18, display: "block" }}>
-          Tháng {effectiveMonth}/{effectiveYear} · gộp toàn viện
-        </p>
-        {ketQuaFull.loading && <LoadingState />}
-        {ketQuaFull.error && <ErrorState message={ketQuaFull.error} />}
-        {!ketQuaFull.loading && !ketQuaFull.error && (
-          <MonthlyDetailCharts ketQuaFullData={ketQuaFull.data} month={effectiveMonth} year={effectiveYear} />
-        )}
       </div>
 
       <div className="card" style={{ marginTop: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <h3 className="card-title" style={{ marginBottom: 0 }}>
-            Biểu đồ nhiệt Khoa × Tháng — Năm {effectiveYear}
-          </h3>
-          <select className="select" value={heatmapContent} onChange={(e) => setHeatmapContent(e.target.value)}>
+          <div>
+            <h3 className="card-title" style={{ marginBottom: 4 }}>
+              Biến động so với {period.mode === "quarter" ? "quý trước" : "kỳ trước"}
+            </h3>
+            <p className="badge-updated" style={{ display: "block" }}>
+              Danh sách khoa cải thiện/giảm nhiều nhất, tính riêng cho từng nội dung — không gộp trung bình.
+            </p>
+          </div>
+          <select className="select" value={momContent} onChange={(e) => setMomContent(e.target.value)}>
             {CONTENT_KEYS.map((k) => (
               <option key={k} value={k}>
                 {CONTENT_LABELS[k]}
@@ -183,11 +193,15 @@ export function Overview({ loiViPham, ketQuaFull }) {
           </select>
         </div>
         <div style={{ marginTop: 16 }}>
-          {ketQuaFull.loading ? <LoadingState /> : <Heatmap matrix={heatmapMatrix} />}
+          <MonthOverMonthTable data={monthOverMonth} />
         </div>
       </div>
 
-      {/* ---- Lỗi vi phạm — cuối cùng ---- */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3 className="card-title">Biểu đồ chi tiết theo từng tiêu chí</h3>
+        <MonthlyDetailCharts ketQuaFullData={ketQuaFull.data} month={period.thang} year={effectiveYear} />
+      </div>
+
       <div className="grid grid-2" style={{ marginTop: 20 }}>
         <div className="card">
           <h3 className="card-title">Pareto lỗi vi phạm (lũy kế năm)</h3>

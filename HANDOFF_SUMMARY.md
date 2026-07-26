@@ -3,6 +3,66 @@
 > Dán toàn bộ nội dung file này vào đầu cuộc trò chuyện mới (kèm file
 > zip code đính kèm) để Claude nắm lại đầy đủ bối cảnh và tiếp tục hỗ trợ.
 
+## 0. Cập nhật lớn gần nhất (chỉnh sửa web ver2)
+
+- Đổi font toàn site sang **Inter** (thay Nunito/Nunito Sans).
+- Trang Tổng quan: bộ lọc tháng/năm chuyển lên **đầu tiên**, tháng giờ
+  là multi-select (`selectedMonths`) — chọn đúng 3 tháng khớp 1 quý
+  chuẩn sẽ tự chuyển sang "chế độ quý" (`resolvePeriod()` trong
+  `aggregate.js`), chỉ chọn 1 tháng thì "chế độ tháng"; các trường hợp
+  khác (chọn 0 hoặc >1 tháng không khớp quý) so với **cùng kỳ năm
+  trước** để tránh trộn 2 năm khác nhau trong cùng 1 filter mảng.
+- Nhận xét tự động viết lại hoàn toàn: `generateContentInsights()` (thay
+  `generateInsights()` cũ) — tính theo `buildContentSummary()`, cho ra
+  tỷ lệ trung bình + so kỳ trước, từng nội dung kèm khoa cao nhất/tiêu
+  chí cần cải thiện/tiêu chí cải thiện tốt nhất, lỗi vi phạm lặp lại
+  trong kỳ (`findRepeatedViolations()`), và dòng đề xuất kiến nghị. Khi
+  dùng ở trang Kết quả chi tiết với `khoaFocus` (tên khoa hoặc "N khoa
+  đã chọn"), mọi câu so sánh xoay quanh khoa đó so với mục tiêu 80% và
+  kỳ trước — không còn kiểu so khoa đang lọc với chính nó.
+- Biểu đồ so quý (`QuarterCompareChart`) đổi trục hoành sang **nội
+  dung**, mỗi nội dung 1 nhóm 4 cột quý — dùng
+  `buildQuarterComparisonByContent()`.
+- Cơ cấu hình thức giám sát (donut) bỏ "Tự giám sát", chỉ còn Giám sát
+  chéo / Ngoại kiểm.
+- Biến động so kỳ trước tách riêng theo từng nội dung
+  (`buildMonthOverMonthByContent()`), có dropdown chọn nội dung, không
+  gộp trung bình vô nghĩa như bản cũ.
+- `MonthlyDetailCharts` (biểu đồ tiêu chí con): sửa lỗi margin âm gây
+  clip số "100%" thành "00%" ở trục tung, tăng cỡ chữ nhãn tiêu chí con,
+  bỏ dòng chú "gộp toàn viện".
+- Trang "Kết quả giám sát" đổi tên thành **"Kết quả chi tiết"**: nhận
+  xét tự động đưa lên ngay sau bộ lọc; biểu đồ xếp hạng khoa đặt trong
+  khung `resize: vertical` (kéo góc dưới-phải để thu hẹp/mở rộng); biểu
+  đồ so kỳ trước dùng chung `resolvePeriod()` nên tự linh động
+  tháng/quý; **đã bỏ bảng số liệu thô 4 nội dung, thay bằng Heatmap Khoa
+  × Tháng** (`buildHeatmapMatrix()` giờ nhận thêm tham số lọc khoa).
+- Trang So sánh hình thức GS: viết lại câu mô tả dưới tiêu đề cho gọn,
+  tránh ngắt dòng xấu.
+- `resolvePeriod()`, `buildContentSummary()`, `buildPeriodCompare()`
+  (bản mới, 2 chuỗi hiện tại/kỳ trước thay vì 4 chuỗi cố định),
+  `findRepeatedViolations()`, `buildQuarterComparisonByContent()`,
+  `buildMonthOverMonthByContent()` đều nằm trong `src/utils/aggregate.js`
+  — đọc kỹ trước khi sửa vì nhiều trang đang dùng chung.
+
+## 0.1 Cập nhật lớn trước đó (chỉnh sửa web ver1)
+
+- Đã bỏ hoàn toàn tab "Biểu đồ" khỏi luồng dữ liệu — 4 KPI đầu trang
+  Tổng quan giờ tính trực tiếp từ "Kết quả full" (gộp toàn viện) để
+  luôn khớp với bộ lọc tháng/năm, thay vì đọc số tĩnh từ tab riêng.
+  `App.jsx` giờ chỉ fetch 2 tab: `ketQuaFull`, `loiViPham`.
+- Đã bổ sung trích xuất **dữ liệu tiêu chí con** (sub-criteria) cho cả
+  5 nội dung trong `parsers.js` (`QTQD_CONTENT_GROUPS[].subOffsets`,
+  `S5_SUB_OFFSETS`) — dùng cho biểu đồ "chi tiết theo từng tiêu chí".
+- `aggregate.js` có `matchFilter()` cho phép mọi hàm tổng hợp
+  (`computeRate`, `buildCoverageDonut`...) nhận bộ lọc thang/nam/khoa là
+  **mảng nhiều giá trị** (mảng rỗng = không lọc/"Tất cả"), phục vụ các
+  ô lọc multi-select mới ở trang Kết quả giám sát / So sánh / Xu hướng.
+- Component `MultiSelect.jsx` (mới) thay cho `MultiSelectKhoa.jsx` cũ
+  (đã xoá) — dùng chung cho khoa/tháng/năm, có nút "Chọn tất cả".
+- Toàn bộ 5 trang đã được viết lại đáng kể — xem chi tiết yêu cầu gốc ở
+  lịch sử hội thoại nếu cần đối chiếu lại từng điểm.
+
 ## 1. Bối cảnh & mục tiêu
 
 Người dùng là nhân viên **Ban QLCL** tại **Bệnh viện Quân y 175 (BVQY175)**,

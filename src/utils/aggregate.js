@@ -117,9 +117,10 @@ export function computeRate(records, { thang, nam, khoa, contentKey }) {
 }
 
 /** Ma trận Khoa × Tháng cho 1 nội dung, trong 1 năm — dùng cho heatmap. */
-export function buildHeatmapMatrix(ketQuaFull, contentKey, nam) {
+export function buildHeatmapMatrix(ketQuaFull, contentKey, nam, khoaFilter = null) {
   const records = getRecordsForContent(ketQuaFull, contentKey);
-  const khoas = listKhoa(records.filter((r) => r.nam === nam));
+  let khoas = listKhoa(records.filter((r) => r.nam === nam));
+  if (khoaFilter && khoaFilter.length) khoas = khoas.filter((k) => khoaFilter.includes(k));
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   return khoas.map((khoa) => ({
     khoa,
@@ -173,7 +174,7 @@ export function buildDistribution(khoaRates) {
 
 /** Cơ cấu hình thức giám sát theo tổng số lượng giám sát (n), dùng cho donut. */
 export function buildCoverageDonut(ketQuaFull, { thang, nam }) {
-  const totals = { [LOAI.TU_GS]: 0, [LOAI.GS_CHEO]: 0, [LOAI.NGOAI_KIEM]: 0 };
+  const totals = { [LOAI.GS_CHEO]: 0, [LOAI.NGOAI_KIEM]: 0 };
   CONTENT_KEYS.forEach((g) => {
     const records = getRecordsForContent(ketQuaFull, g).filter(
       (r) => matchFilter(r.thang, thang) && matchFilter(r.nam, nam)
@@ -204,6 +205,32 @@ export function computeTotalRow(tableRows) {
 }
 
 /** Biến động tỷ lệ tuân thủ chung theo khoa so với tháng liền trước. */
+/** Biến động so với kỳ trước, TÁCH RIÊNG theo 1 nội dung cụ thể (không gộp trung bình các nội dung). */
+export function buildMonthOverMonthByContent(ketQuaFull, { thang, nam, prevThang, prevNam, contentKey }) {
+  let pThang = prevThang;
+  let pNam = prevNam;
+  if (pThang === undefined) {
+    pThang = thang - 1;
+    pNam = nam;
+    if (pThang < 1) {
+      pThang = 12;
+      pNam = nam - 1;
+    }
+  }
+  const records = getRecordsForContent(ketQuaFull, contentKey);
+  const khoaList = listKhoa(records.filter((r) => matchFilter(r.thang, thang) && matchFilter(r.nam, nam)));
+
+  return khoaList
+    .map((khoa) => {
+      const current = computeRate(records, { thang, nam, khoa, contentKey }).rate;
+      const previous = computeRate(records, { thang: pThang, nam: pNam, khoa, contentKey }).rate;
+      if (current === null || previous === null) return null;
+      return { khoa, current, previous, delta: current - previous };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.delta - a.delta);
+}
+
 export function buildMonthOverMonth(ketQuaFull, { thang, nam }) {
   let prevThang = thang - 1;
   let prevNam = nam;
@@ -264,76 +291,145 @@ export function computeSubCriteriaRates(records, { thang, nam, khoa, contentKey 
 }
 
 /**
- * Tổng hợp 4 KPI đầu trang Tổng quan, tính trực tiếp từ "Kết quả full"
- * (gộp toàn viện, không theo khoa) — kèm số lượt giám sát (n) và biến
- * động so với tháng liền trước, để KPI card thể hiện nhiều thông tin
- * hơn ngoài con số tỷ lệ.
+ * Xác định đang xem theo THÁNG / QUÝ / hay khoảng tuỳ ý dựa trên các
+ * tháng đang chọn, và tính ra kỳ liền trước tương ứng để so sánh —
+ * dùng chung cho trang Tổng quan và Kết quả chi tiết.
  */
-export function computeKpiSummary(ketQuaFull, { thang, nam }) {
-  let prevThang = thang - 1;
-  let prevNam = nam;
-  if (prevThang < 1) {
-    prevThang = 12;
-    prevNam = nam - 1;
+export function resolvePeriod(selectedMonths, nam) {
+  if (selectedMonths.length === 1) {
+    const m = selectedMonths[0];
+    const prevThang = m === 1 ? 12 : m - 1;
+    const prevNam = m === 1 ? nam - 1 : nam;
+    return {
+      mode: "month",
+      thang: m,
+      prevThang,
+      prevNam,
+      currentLabel: `Tháng ${m}/${nam}`,
+      previousLabel: `Tháng ${prevThang}/${prevNam}`,
+    };
   }
+  const q = QUARTERS.find(
+    (q) => q.months.length === selectedMonths.length && q.months.every((m) => selectedMonths.includes(m))
+  );
+  if (q) {
+    const idx = QUARTERS.indexOf(q);
+    const prevQ = idx === 0 ? QUARTERS[3] : QUARTERS[idx - 1];
+    const prevNam = idx === 0 ? nam - 1 : nam;
+    return {
+      mode: "quarter",
+      thang: q.months,
+      prevThang: prevQ.months,
+      prevNam,
+      currentLabel: `${q.label}/${nam}`,
+      previousLabel: `${prevQ.label}/${prevNam}`,
+    };
+  }
+  const thang = selectedMonths.length ? selectedMonths : null;
+  return {
+    mode: "custom",
+    thang,
+    prevThang: thang,
+    prevNam: nam - 1,
+    currentLabel: selectedMonths.length ? `Các tháng ${selectedMonths.join(", ")}/${nam}` : `Cả năm ${nam}`,
+    previousLabel: selectedMonths.length ? `Các tháng ${selectedMonths.join(", ")}/${nam - 1}` : `Cả năm ${nam - 1}`,
+  };
+}
+
+/** So sánh 1 khoa (hoặc null=toàn viện) theo đúng kỳ đang xem (tháng hoặc quý) với kỳ liền trước, cho từng nội dung — dùng đúng resolvePeriod để linh động tháng/quý. */
+export function buildPeriodCompare(ketQuaFull, { khoa, thang, nam, prevThang, prevNam }) {
+  const round = (v) => (v === null || v === undefined ? null : Math.round(v * 1000) / 10);
   return CONTENT_KEYS.map((key) => {
     const records = getRecordsForContent(ketQuaFull, key);
-    const { rate, n } = computeRate(records, { thang, nam, khoa: null, contentKey: key });
-    const prev = computeRate(records, { thang: prevThang, nam: prevNam, khoa: null, contentKey: key });
-    const delta = rate !== null && prev.rate !== null ? rate - prev.rate : null;
-    return { key, rate, n, delta };
+    const current = computeRate(records, { thang, nam, khoa, contentKey: key }).rate;
+    const previous = computeRate(records, { thang: prevThang, nam: prevNam, khoa, contentKey: key }).rate;
+    return { name: CONTENT_LABELS[key], current: round(current), previous: round(previous) };
   });
 }
 
 /**
- * So sánh 1 khoa: tháng hiện tại / tháng trước / quý hiện tại / quý
- * trước, cho từng nội dung — dùng cho biểu đồ so sánh kỳ ở trang
- * "Chi tiết từng khoa".
+ * Tổng hợp đầy đủ theo TỪNG NỘI DUNG cho 1 kỳ (tháng hoặc quý), dùng làm
+ * "nguyên liệu" cho nhận xét tự động: tỷ lệ hiện tại, so với kỳ trước,
+ * khoa cao nhất (khi không giới hạn 1 khoa cụ thể), tiêu chí con thấp
+ * nhất cần cải thiện, tiêu chí con cải thiện tốt nhất so với kỳ trước.
  */
-export function buildPeriodCompare(ketQuaFull, { khoa, thang, nam }) {
-  let prevThang = thang - 1;
-  let prevNam = nam;
-  if (prevThang < 1) {
-    prevThang = 12;
-    prevNam = nam - 1;
-  }
-  const curQuarter = QUARTERS.find((q) => q.months.includes(thang)) || QUARTERS[0];
-  const curQIdx = QUARTERS.indexOf(curQuarter);
-  let prevQuarter, prevQNam;
-  if (curQIdx === 0) {
-    prevQuarter = QUARTERS[3];
-    prevQNam = nam - 1;
-  } else {
-    prevQuarter = QUARTERS[curQIdx - 1];
-    prevQNam = nam;
-  }
-
-  const round = (v) => (v === null || v === undefined ? null : Math.round(v * 1000) / 10);
-
+export function buildContentSummary(ketQuaFull, { thang, nam, khoa, prevThang, prevNam }) {
   return CONTENT_KEYS.map((key) => {
     const records = getRecordsForContent(ketQuaFull, key);
-    const current = computeRate(records, { thang, nam, khoa, contentKey: key }).rate;
-    const prevMonth = computeRate(records, { thang: prevThang, nam: prevNam, khoa, contentKey: key }).rate;
-    const currentQuarter = computeRate(records, { thang: curQuarter.months, nam, khoa, contentKey: key }).rate;
-    const prevQuarterRate = computeRate(records, { thang: prevQuarter.months, nam: prevQNam, khoa, contentKey: key }).rate;
+    const { rate, n } = computeRate(records, { thang, nam, khoa, contentKey: key });
+    const prev = computeRate(records, { thang: prevThang, nam: prevNam, khoa, contentKey: key });
+    const delta = rate !== null && prev.rate !== null ? rate - prev.rate : null;
+
+    let topKhoa = null;
+    if (!khoa) {
+      const scoped = records.filter((r) => matchFilter(r.thang, thang) && matchFilter(r.nam, nam));
+      const khoaList = listKhoa(scoped);
+      let best = null;
+      khoaList.forEach((k) => {
+        const kr = computeRate(records, { thang, nam, khoa: k, contentKey: key }).rate;
+        if (kr !== null && (!best || kr > best.rate)) best = { khoa: k, rate: kr };
+      });
+      topKhoa = best;
+    }
+
+    const subRates = computeSubCriteriaRates(records, { thang, nam, khoa, contentKey: key });
+    const prevSubRates = computeSubCriteriaRates(records, { thang: prevThang, nam: prevNam, khoa, contentKey: key });
+    const validSub = subRates.filter((s) => s.rate !== null && s.rate !== undefined);
+    const worstSub = validSub.length ? validSub.reduce((a, b) => (a.rate <= b.rate ? a : b)) : null;
+
+    let bestImprovedSub = null;
+    subRates.forEach((s, idx) => {
+      const prevS = prevSubRates[idx];
+      if (s.rate !== null && s.rate !== undefined && prevS && prevS.rate !== null && prevS.rate !== undefined) {
+        const d = s.rate - prevS.rate;
+        if (!bestImprovedSub || d > bestImprovedSub.delta) bestImprovedSub = { label: s.label, delta: d };
+      }
+    });
+
     return {
-      name: CONTENT_LABELS[key],
-      current: round(current),
-      prevMonth: round(prevMonth),
-      currentQuarter: round(currentQuarter),
-      prevQuarter: round(prevQuarterRate),
+      key,
+      label: CONTENT_LABELS[key],
+      rate,
+      n,
+      prevRate: prev.rate,
+      delta,
+      topKhoa,
+      worstSub,
+      bestImprovedSub,
     };
   });
 }
 
-/** So sánh tỷ lệ tuân thủ theo 4 quý trong 1 năm, gộp toàn viện, cho từng nội dung. */
-export function buildQuarterComparison(ketQuaFull, { nam }) {
-  return QUARTERS.map((q) => {
-    const point = { quarter: q.label };
-    CONTENT_KEYS.forEach((key) => {
-      const records = getRecordsForContent(ketQuaFull, key);
+/** Tìm các mã lỗi lặp lại (xuất hiện từ 2 lượt trở lên) trong các tháng thuộc kỳ đang xem. */
+export function findRepeatedViolations(loiViPhamData, months) {
+  if (!loiViPhamData || !months || !months.length) return [];
+  const monthIdxSet = new Set(months.map((m) => m - 1));
+  const countByCode = {};
+  (loiViPhamData.rows || []).forEach((r) => {
+    (r.monthly || []).forEach((cell, idx) => {
+      if (monthIdxSet.has(idx) && cell.code !== null && cell.code !== undefined) {
+        countByCode[cell.code] = (countByCode[cell.code] || 0) + 1;
+      }
+    });
+  });
+  const legendMap = {};
+  (loiViPhamData.legend || []).forEach((l) => {
+    legendMap[l.code] = l.name;
+  });
+  return Object.entries(countByCode)
+    .map(([code, count]) => ({ code, name: legendMap[code] || `Mã ${code}`, count }))
+    .filter((x) => x.count >= 2)
+    .sort((a, b) => b.count - a.count);
+}
+
+/** So sánh tỷ lệ tuân thủ theo 4 quý trong 1 năm, gộp toàn viện, cho từng nội dung — trục theo NỘI DUNG (mỗi nội dung 1 nhóm 4 cột quý). */
+export function buildQuarterComparisonByContent(ketQuaFull, { nam }) {
+  return CONTENT_KEYS.map((key) => {
+    const records = getRecordsForContent(ketQuaFull, key);
+    const point = { name: CONTENT_LABELS[key] };
+    QUARTERS.forEach((q) => {
       const { rate } = computeRate(records, { thang: q.months, nam, khoa: null, contentKey: key });
-      point[key] = rate !== null ? Math.round(rate * 1000) / 10 : null;
+      point[q.key] = rate !== null ? Math.round(rate * 1000) / 10 : null;
     });
     return point;
   });
