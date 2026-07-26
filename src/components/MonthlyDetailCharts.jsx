@@ -10,6 +10,7 @@ import {
   LabelList,
   ResponsiveContainer,
 } from "recharts";
+import { TOOLTIP_STYLE } from "../utils/chartTheme.js";
 import {
   CONTENT_KEYS,
   CONTENT_LABELS,
@@ -80,7 +81,7 @@ export function MonthlyDetailCharts({ ketQuaFullData, month, year, khoa = null }
                 <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 11.5 }} interval={0} angle={-40} textAnchor="end" height={110} />
                 <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} width={44} />
-                <Tooltip formatter={(v) => (v === null ? "—" : `${v}%`)} />
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v) => (v === null ? "—" : `${v}%`)} />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                   {sec.data.map((d, i) => (
                     <Cell key={i} fill={d.value === null ? "#dbe1e0" : barColor(d.value)} />

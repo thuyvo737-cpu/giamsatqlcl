@@ -1,4 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList, ResponsiveContainer } from "recharts";
+import { TOOLTIP_STYLE } from "../utils/chartTheme.js";
 
 function barColor(pct) {
   if (pct >= 90) return "#5fb3a3";
@@ -16,7 +17,7 @@ export function RankingChart({ data }) {
         <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" horizontal={false} />
         <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} />
         <YAxis type="category" dataKey="khoa" width={70} tick={{ fontSize: 11, fontFamily: "var(--font-mono)" }} />
-        <Tooltip formatter={(v) => `${v}%`} />
+        <Tooltip {...TOOLTIP_STYLE} formatter={(v) => `${v}%`} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
           {data.map((d, i) => (
             <Cell key={i} fill={barColor(d.value)} />

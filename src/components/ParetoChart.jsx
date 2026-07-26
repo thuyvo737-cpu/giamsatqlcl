@@ -9,6 +9,7 @@ import {
   LabelList,
   ResponsiveContainer,
 } from "recharts";
+import { TOOLTIP_STYLE } from "../utils/chartTheme.js";
 
 export function ParetoChart({ legend }) {
   const sorted = [...(legend || [])].filter((x) => x.count > 0).sort((a, b) => b.count - a.count);
@@ -30,7 +31,7 @@ export function ParetoChart({ legend }) {
         <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" horizontal={false} />
         <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
         <YAxis type="category" dataKey="name" width={230} tick={{ fontSize: 11 }} />
-        <Tooltip
+        <Tooltip {...TOOLTIP_STYLE}
           formatter={(value, key) => (key === "cumPct" ? [`${value}%`, "Tích lũy"] : [value, "Số lượt"])}
         />
         <Bar dataKey="count" fill="var(--red-500, #d9897f)" radius={[0, 4, 4, 0]} barSize={20}>

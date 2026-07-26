@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, ResponsiveContainer } from "recharts";
 import { QUARTERS } from "../utils/aggregate.js";
+import { TOOLTIP_STYLE } from "../utils/chartTheme.js";
 
 const QUARTER_COLORS = { q1: "#5fb3a3", q2: "#e3ab68", q3: "#4a5578", q4: "#d9897f" };
 
@@ -16,7 +17,7 @@ export function QuarterCompareChart({ data }) {
         <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" vertical={false} />
         <XAxis dataKey="name" tick={{ fontSize: 10.5 }} interval={0} angle={-15} textAnchor="end" height={56} />
         <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} width={40} />
-        <Tooltip formatter={(v) => (v === null ? "—" : `${v}%`)} />
+        <Tooltip {...TOOLTIP_STYLE} formatter={(v) => (v === null ? "—" : `${v}%`)} />
         <Legend wrapperStyle={{ fontSize: 11 }} formatter={(k) => QUARTERS.find((q) => q.key === k)?.label || k} />
         {QUARTERS.map((q) => (
           <Bar key={q.key} dataKey={q.key} name={q.key} fill={QUARTER_COLORS[q.key]} radius={[3, 3, 0, 0]}>

@@ -47,33 +47,51 @@ export function generateContentInsights({
   if (khoaFocus) {
     const reached = avgRate >= target;
     lines.push(
-      `${khoaFocus}: tỷ lệ tuân thủ trung bình 5 nội dung trong ${currentLabel} đạt ${fmtPct(avgRate)} — ${
-        reached ? "đã đạt" : "chưa đạt"
-      } mục tiêu ${Math.round(target * 100)}%, ${deltaText(avgDelta)} so với ${previousLabel}.`
+      `${khoaFocus} ${reached ? "đã đạt" : "chưa đạt"} mục tiêu tuân thủ ${Math.round(target * 100)}%, với tỷ lệ trung bình 5 nội dung trong ${currentLabel} đạt ${fmtPct(avgRate)}, ${deltaText(avgDelta)} so với ${previousLabel}.`
     );
   } else {
     lines.push(
-      `Tỷ lệ tuân thủ trung bình 5 nội dung toàn viện trong ${currentLabel} đạt ${fmtPct(avgRate)}, ${deltaText(
+      `Toàn viện đạt tỷ lệ tuân thủ trung bình ${fmtPct(avgRate)} trong ${currentLabel}, ${deltaText(
         avgDelta
       )} so với ${previousLabel}.`
     );
   }
 
-  // 2) Chi tiết từng nội dung
+  // 2) Chi tiết từng nội dung — văn phong chuyên gia QLCL, câu liền mạch
   valid.forEach((c) => {
-    const parts = [`${c.label}: ${fmtPct(c.rate)} (${deltaText(c.delta)} so với ${previousLabel})`];
+    const trendVerb = (() => {
+      if (c.delta === null || c.delta === undefined) return null;
+      if (Math.abs(c.delta) < 0.005) return "duy trì ổn định";
+      if (c.delta > 0.05) return "cải thiện rõ rệt";
+      if (c.delta > 0) return "tiếp tục cải thiện";
+      if (c.delta < -0.05) return "sụt giảm đáng kể";
+      return "giảm nhẹ";
+    })();
+
+    let sentence1;
     if (khoaFocus) {
-      parts.push(c.rate >= target ? "đã đạt mục tiêu" : `chưa đạt mục tiêu ${Math.round(target * 100)}%`);
-    } else if (c.topKhoa) {
-      parts.push(`khoa cao nhất: ${c.topKhoa.khoa} (${fmtPct(c.topKhoa.rate)})`);
+      const targetPhrase = c.rate >= target ? `đã vượt mục tiêu ${Math.round(target * 100)}%` : `vẫn chưa đạt mục tiêu ${Math.round(target * 100)}%`;
+      sentence1 = trendVerb
+        ? `${c.label} tại ${khoaFocus} ${trendVerb} trong ${currentLabel}, đạt ${fmtPct(c.rate)} (${deltaText(c.delta)} so với ${previousLabel}) và ${targetPhrase}.`
+        : `${c.label} tại ${khoaFocus} đạt ${fmtPct(c.rate)} trong ${currentLabel} và ${targetPhrase}.`;
+    } else {
+      sentence1 = trendVerb
+        ? `${c.label} ${trendVerb} trong ${currentLabel}, đạt ${fmtPct(c.rate)} toàn viện (${deltaText(c.delta)} so với ${previousLabel})${
+            c.topKhoa ? `; khoa dẫn đầu là ${c.topKhoa.khoa} (${fmtPct(c.topKhoa.rate)})` : ""
+          }.`
+        : `${c.label} đạt ${fmtPct(c.rate)} toàn viện trong ${currentLabel}${c.topKhoa ? `, khoa dẫn đầu là ${c.topKhoa.khoa} (${fmtPct(c.topKhoa.rate)})` : ""}.`;
     }
+
+    let sentence2 = "";
     if (c.worstSub && c.worstSub.rate !== null) {
-      parts.push(`cần cải thiện tiêu chí "${c.worstSub.label}" (${fmtPct(c.worstSub.rate)})`);
+      sentence2 = ` Tuy nhiên tiêu chí "${c.worstSub.label}" vẫn thấp nhất (${fmtPct(c.worstSub.rate)}) và cần được ưu tiên cải tiến.`;
     }
+    let sentence3 = "";
     if (c.bestImprovedSub && c.bestImprovedSub.delta > 0.01) {
-      parts.push(`cải thiện nổi bật ở "${c.bestImprovedSub.label}" (+${fmtPctPoint(c.bestImprovedSub.delta)})`);
+      sentence3 = ` Điểm sáng là tiêu chí "${c.bestImprovedSub.label}" đã cải thiện đáng kể (+${fmtPctPoint(c.bestImprovedSub.delta)}).`;
     }
-    lines.push(parts.join(" — ") + ".");
+
+    lines.push(sentence1 + sentence2 + sentence3);
   });
 
   // 3) Lỗi vi phạm lặp lại trong kỳ
@@ -102,7 +120,7 @@ export function generateContentInsights({
     recParts.push(`nhắc nhở khắc phục lỗi "${repeatedViolations[0].name}" đang lặp lại nhiều nhất`);
   }
   if (recParts.length) {
-    lines.push(`Đề xuất: ${recParts.join("; ")}.`);
+    lines.push(`Đề xuất Ban QLCL: nên ${recParts.join("; ")}.`);
   }
 
   return lines;
@@ -191,4 +209,72 @@ export function generateViolationInsights({ legend, rows }) {
     lines.push(`Khoa có nhiều tháng phát sinh lỗi nhất là ${worst.khoa}, với ${worst.total} tháng có ghi nhận vi phạm.`);
   }
   return lines;
+}
+
+/**
+ * Executive Summary cho đầu trang Tổng quan — tóm tắt điều hành ngắn
+ * gọn cho Ban Giám đốc: mức tuân thủ chung, nội dung cải thiện/giảm
+ * nhiều nhất, khoa cần ưu tiên, và hành động ưu tiên nên triển khai.
+ */
+export function generateExecutiveSummary({ contentSummaries, priorityKhoa, currentLabel, previousLabel }) {
+  const valid = (contentSummaries || []).filter((c) => c.rate !== null);
+  const avgRate = valid.length ? valid.reduce((s, c) => s + c.rate, 0) / valid.length : null;
+
+  const withDelta = valid.filter((c) => c.delta !== null && c.delta !== undefined);
+  const mostImproved = withDelta.length ? [...withDelta].sort((a, b) => b.delta - a.delta)[0] : null;
+  const mostDeclined = withDelta.length ? [...withDelta].sort((a, b) => a.delta - b.delta)[0] : null;
+
+  const topPriority = (priorityKhoa || []).slice(0, 3);
+
+  const actions = [];
+  const worstContent = valid.length ? [...valid].sort((a, b) => a.rate - b.rate)[0] : null;
+  if (worstContent) {
+    actions.push(
+      `Chỉ đạo rà soát quy trình "${worstContent.label}" (${fmtPct(worstContent.rate)}, thấp nhất toàn viện)${
+        worstContent.worstSub ? `, tập trung vào tiêu chí "${worstContent.worstSub.label}"` : ""
+      }.`
+    );
+  }
+  if (topPriority.length) {
+    actions.push(
+      `Tăng cường giám sát/hỗ trợ ${topPriority.length} khoa có điểm rủi ro cao nhất: ${topPriority
+        .map((k) => k.khoa)
+        .join(", ")}.`
+    );
+  }
+  if (mostDeclined && mostDeclined.delta < -0.01) {
+    actions.push(`Tìm hiểu nguyên nhân "${mostDeclined.label}" giảm ${fmtPctPoint(mostDeclined.delta)} so với ${previousLabel} và có biện pháp khắc phục kịp thời.`);
+  } else {
+    actions.push(`Duy trì các biện pháp đang triển khai để giữ vững đà cải thiện trong ${currentLabel}.`);
+  }
+
+  return {
+    avgRate,
+    mostImproved,
+    mostDeclined,
+    topPriority,
+    actions: actions.slice(0, 3),
+  };
+}
+
+// Từ khoá → khuyến nghị cải tiến gợi ý, dùng để sinh tự động ở trang Lỗi vi phạm.
+const RECOMMEND_RULES = [
+  { keywords: ["chữ ký", "ký"], text: "Tổ chức đào tạo/nhắc nhở nhân viên ký xác nhận đầy đủ theo quy định." },
+  { keywords: ["minh chứng", "chứng từ", "hồ sơ"], text: "Tăng cường kiểm tra hồ sơ, bổ sung minh chứng còn thiếu." },
+  { keywords: ["thông tin", "đầy đủ", "điền"], text: "Cập nhật lại checklist thao tác để đảm bảo điền đầy đủ thông tin." },
+  { keywords: ["thời gian", "trễ", "chậm"], text: "Rà soát quy trình để đảm bảo thực hiện đúng thời gian quy định." },
+];
+
+function recommendFor(name) {
+  const lower = (name || "").toLowerCase();
+  const rule = RECOMMEND_RULES.find((r) => r.keywords.some((k) => lower.includes(k)));
+  return rule ? rule.text : "Hướng dẫn bổ sung, nhắc nhở khoa/phòng thực hiện đúng quy trình đã ban hành.";
+}
+
+/** Sinh khuyến nghị cải tiến tự động cho top loại lỗi phổ biến nhất — dùng ở trang Lỗi vi phạm, sau Pareto. */
+export function generateRecommendations(legend) {
+  return (legend || [])
+    .filter((v) => v.count > 0)
+    .slice(0, 5)
+    .map((v) => ({ name: v.name, count: v.count, recommendation: recommendFor(v.name) }));
 }

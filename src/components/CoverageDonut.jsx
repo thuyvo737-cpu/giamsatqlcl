@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { TOOLTIP_STYLE } from "../utils/chartTheme.js";
 
 const COLORS = {
   "Tự giám sát": "#8497a6",
@@ -27,7 +28,7 @@ export function CoverageDonut({ data }) {
             <Cell key={d.name} fill={COLORS[d.name] || "#dbe1e0"} />
           ))}
         </Pie>
-        <Tooltip
+        <Tooltip {...TOOLTIP_STYLE}
           formatter={(value, name) => [
             `${value} (${Math.round((value / total) * 1000) / 10}%)`,
             name,

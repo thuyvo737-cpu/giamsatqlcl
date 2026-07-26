@@ -9,21 +9,28 @@ import { CoverageDonut } from "../components/CoverageDonut.jsx";
 import { MonthOverMonthTable } from "../components/MonthOverMonthTable.jsx";
 import { QuarterCompareChart } from "../components/QuarterCompareChart.jsx";
 import { InsightBox } from "../components/InsightBox.jsx";
+import { ExecutiveSummary } from "../components/ExecutiveSummary.jsx";
+import { AlertPanel } from "../components/AlertPanel.jsx";
+import { PriorityKhoaCard } from "../components/PriorityKhoaCard.jsx";
+import { CONTENT_ICONS } from "../utils/icons.jsx";
 import {
   CONTENT_KEYS,
   CONTENT_LABELS,
   CONTENT_COLORS,
+  CONTENT_COLORS_BG,
   aggregateAllKhoa,
   buildCoverageDonut,
   buildContentSummary,
   buildDistribution,
   buildMonthOverMonthByContent,
   buildQuarterComparisonByContent,
+  buildAlerts,
+  buildPriorityKhoa,
   findRepeatedViolations,
   getAvailableYears,
   resolvePeriod,
 } from "../utils/aggregate.js";
-import { generateContentInsights } from "../utils/insights.js";
+import { generateContentInsights, generateExecutiveSummary } from "../utils/insights.js";
 
 const KPI_ORDER = ["nhanDang", "vongTay", "teNga", "atpt"];
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` }));
@@ -90,6 +97,25 @@ export function Overview({ loiViPham, ketQuaFull }) {
     return findRepeatedViolations(loiViPham.data, months);
   }, [loiViPham.data, period]);
 
+  const alerts = useMemo(
+    () => (ketQuaFull.data ? buildAlerts(ketQuaFull.data, loiViPham.data, { nam: effectiveYear }) : []),
+    [ketQuaFull.data, loiViPham.data, effectiveYear]
+  );
+  const priorityKhoa = useMemo(
+    () => (ketQuaFull.data ? buildPriorityKhoa(ketQuaFull.data, loiViPham.data, { nam: effectiveYear }) : []),
+    [ketQuaFull.data, loiViPham.data, effectiveYear]
+  );
+  const execSummary = useMemo(
+    () =>
+      generateExecutiveSummary({
+        contentSummaries,
+        priorityKhoa,
+        currentLabel: period.currentLabel,
+        previousLabel: period.previousLabel,
+      }),
+    [contentSummaries, priorityKhoa, period]
+  );
+
   const insightLines = useMemo(
     () =>
       generateContentInsights({
@@ -113,6 +139,8 @@ export function Overview({ loiViPham, ketQuaFull }) {
         <p className="page-eyebrow">Tổng quan</p>
         <h1 className="page-title">Kết quả giám sát tuân thủ QT-QĐ</h1>
       </div>
+
+      <ExecutiveSummary summary={execSummary} currentLabel={period.currentLabel} />
 
       {/* ---- Bộ lọc lên đầu tiên ---- */}
       <div className="card">
@@ -146,6 +174,8 @@ export function Overview({ loiViPham, ketQuaFull }) {
               n={c?.n ?? null}
               delta={c?.delta ?? null}
               color={CONTENT_COLORS[key]}
+              colorBg={CONTENT_COLORS_BG[key]}
+              icon={CONTENT_ICONS[key]}
             />
           );
         })}
@@ -153,6 +183,14 @@ export function Overview({ loiViPham, ketQuaFull }) {
 
       <div style={{ marginTop: 20 }}>
         <InsightBox lines={insightLines} title={`Nhận xét tự động — ${period.currentLabel}`} />
+      </div>
+
+      <h2 className="section-title">Cảnh báo</h2>
+      <AlertPanel alerts={alerts} />
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3 className="card-title">Khoa cần ưu tiên giám sát</h3>
+        <PriorityKhoaCard data={priorityKhoa} />
       </div>
 
       <div className="card" style={{ marginTop: 20 }}>

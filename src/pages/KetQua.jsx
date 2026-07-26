@@ -28,6 +28,8 @@ export function KetQua({ hook }) {
   const [selectedYears, setSelectedYears] = useState([]);
   const [rankContent, setRankContent] = useState(CONTENT_KEYS[0]);
   const [heatmapContent, setHeatmapContent] = useState(CONTENT_KEYS[0]);
+  const [heatmapLimit, setHeatmapLimit] = useState("10");
+  const [heatmapSearch, setHeatmapSearch] = useState("");
 
   const years = useMemo(() => getAvailableYears(hook.data), [hook.data]);
   useEffect(() => {
@@ -89,10 +91,22 @@ export function KetQua({ hook }) {
     [hook.data, khoaFilter, period, effectiveYear]
   );
 
-  const heatmapMatrix = useMemo(
-    () => (hook.data ? buildHeatmapMatrix(hook.data, heatmapContent, effectiveYear, khoaFilter) : []),
-    [hook.data, heatmapContent, effectiveYear, khoaFilter]
-  );
+  const heatmapMatrix = useMemo(() => {
+    if (!hook.data) return [];
+    let rows = buildHeatmapMatrix(hook.data, heatmapContent, effectiveYear, khoaFilter);
+    if (heatmapSearch.trim()) {
+      const q = heatmapSearch.trim().toLowerCase();
+      rows = rows.filter((r) => r.khoa.toLowerCase().includes(q));
+    }
+    if (heatmapLimit !== "all") {
+      const n = Number(heatmapLimit);
+      rows = [...rows]
+        .map((r) => ({ ...r, _avg: r.cells.filter((v) => v !== null).reduce((s, v) => s + v, 0) / (r.cells.filter((v) => v !== null).length || 1) }))
+        .sort((a, b) => a._avg - b._avg) // thấp nhất lên đầu — ưu tiên xem khoa cần chú ý
+        .slice(0, n);
+    }
+    return rows;
+  }, [hook.data, heatmapContent, effectiveYear, khoaFilter, heatmapSearch, heatmapLimit]);
 
   const focusLabel = selectedKhoa.length === 0 ? null : selectedKhoa.length === 1 ? selectedKhoa[0] : `${selectedKhoa.length} khoa đã chọn`;
 
@@ -179,12 +193,29 @@ export function KetQua({ hook }) {
       <div className="card" style={{ marginTop: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
           <h3 className="card-title" style={{ marginBottom: 0 }}>Biểu đồ nhiệt Khoa × Tháng — Năm {effectiveYear}</h3>
-          <select className="select" value={heatmapContent} onChange={(e) => setHeatmapContent(e.target.value)}>
-            {CONTENT_KEYS.map((k) => (
-              <option key={k} value={k}>{CONTENT_LABELS[k]}</option>
-            ))}
-          </select>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              className="select"
+              placeholder="Tìm khoa..."
+              value={heatmapSearch}
+              onChange={(e) => setHeatmapSearch(e.target.value)}
+              style={{ width: 140 }}
+            />
+            <select className="select" value={heatmapLimit} onChange={(e) => setHeatmapLimit(e.target.value)}>
+              <option value="10">Top 10</option>
+              <option value="20">Top 20</option>
+              <option value="all">Toàn bộ</option>
+            </select>
+            <select className="select" value={heatmapContent} onChange={(e) => setHeatmapContent(e.target.value)}>
+              {CONTENT_KEYS.map((k) => (
+                <option key={k} value={k}>{CONTENT_LABELS[k]}</option>
+              ))}
+            </select>
+          </div>
         </div>
+        <p className="badge-updated" style={{ margin: "8px 0 0", display: "block" }}>
+          {heatmapLimit !== "all" ? `Đang hiện ${heatmapMatrix.length} khoa có tỷ lệ trung bình thấp nhất (cần chú ý trước)` : `Hiện toàn bộ ${heatmapMatrix.length} khoa`}
+        </p>
         <div style={{ marginTop: 16 }}>
           <Heatmap matrix={heatmapMatrix} />
         </div>

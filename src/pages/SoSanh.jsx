@@ -13,6 +13,7 @@ import {
   listKhoa,
 } from "../utils/aggregate.js";
 import { generateComparisonInsights } from "../utils/insights.js";
+import { TOOLTIP_STYLE } from "../utils/chartTheme.js";
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` }));
 const MONTH_LABELS = Array.from({ length: 12 }, (_, i) => `T${i + 1}`);
@@ -131,7 +132,25 @@ export function SoSanh({ hook }) {
         {summaryRows.length === 0 ? (
           <div className="state-box">Chưa có dữ liệu Giám sát chéo/Ngoại kiểm cho khoảng thời gian này.</div>
         ) : (
-          <DumbbellChart data={summaryRows} labelA="Giám sát chéo" labelB="Ngoại kiểm" colorA="#5fb3a3" colorB="#4a5578" />
+          <>
+            <DumbbellChart data={summaryRows} labelA="Giám sát chéo" labelB="Ngoại kiểm" colorA="#5fb3a3" colorB="#4a5578" />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 16 }}>
+              {aggSections
+                .filter((s) => s.rCheo !== null && s.rNgoai !== null)
+                .map((s) => {
+                  const diff = round1(s.rCheo) - round1(s.rNgoai);
+                  return (
+                    <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--ink-600)" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 2, background: `var(--c-${colorSlug(s.key)})`, display: "inline-block" }} />
+                      {s.name}: {round1(s.rCheo)}% / {round1(s.rNgoai)}%
+                      <span className={`deviation-pill ${diff >= 0 ? "pos" : "neg"}`}>
+                        {diff >= 0 ? "+" : ""}{Math.round(diff * 10) / 10}%
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          </>
         )}
       </div>
 
@@ -184,7 +203,7 @@ function TrendChart({ data }) {
         <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" />
         <XAxis dataKey="thang" tick={{ fontSize: 11 }} />
         <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} />
-        <Tooltip formatter={(v) => (v === null ? "—" : `${v}%`)} />
+        <Tooltip {...TOOLTIP_STYLE} formatter={(v) => (v === null ? "—" : `${v}%`)} />
         <Legend wrapperStyle={{ fontSize: 11 }} />
         <Line type="monotone" dataKey="Giám sát chéo" stroke="#5fb3a3" strokeWidth={2} dot={{ r: 2 }} connectNulls />
         <Line type="monotone" dataKey="Ngoại kiểm" stroke="#4a5578" strokeWidth={2} dot={{ r: 2 }} connectNulls />

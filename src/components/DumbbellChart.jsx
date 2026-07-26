@@ -10,6 +10,7 @@ import {
   LabelList,
   ResponsiveContainer,
 } from "recharts";
+import { TOOLTIP_STYLE } from "../utils/chartTheme.js";
 
 export function DumbbellChart({ data, labelA, labelB, colorA = "#2a9d8f", colorB = "#16293c" }) {
   if (!data || !data.length) return <div className="state-box">Chưa có dữ liệu.</div>;
@@ -28,7 +29,7 @@ export function DumbbellChart({ data, labelA, labelB, colorA = "#2a9d8f", colorB
         <CartesianGrid strokeDasharray="3 3" stroke="#eceeeb" horizontal={false} />
         <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
         <YAxis type="category" dataKey="khoa" width={70} tick={{ fontSize: 11 }} />
-        <Tooltip formatter={(v) => (typeof v === "number" ? `${v}%` : v)} />
+        <Tooltip {...TOOLTIP_STYLE} formatter={(v) => (typeof v === "number" ? `${v}%` : v)} />
         <Legend />
         <Bar dataKey="base" stackId="range" fill="transparent" isAnimationActive={false} legendType="none" />
         <Bar dataKey="range" stackId="range" fill="#dbe1e0" barSize={3} isAnimationActive={false} legendType="none" />

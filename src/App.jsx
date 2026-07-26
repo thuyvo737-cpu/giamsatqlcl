@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Nav } from "./components/Nav.jsx";
 import { useSheetData } from "./hooks/useSheetData.js";
 import { TABS } from "./config.js";
 import { parseKetQuaFull, parseLoiViPham } from "./utils/parsers.js";
+import { buildAlerts, getAvailableYears } from "./utils/aggregate.js";
 import { Overview } from "./pages/Overview.jsx";
 import { KetQua } from "./pages/KetQua.jsx";
 import { SoSanh } from "./pages/SoSanh.jsx";
@@ -26,9 +27,18 @@ export default function App() {
   }[page];
   const syncStatus = activeHook.error ? "error" : activeHook.loading ? "pending" : "ok";
 
+  // Số lượng cảnh báo hiện có (năm gần nhất có dữ liệu) — hiện badge trên sidebar.
+  const alertCount = useMemo(() => {
+    if (!ketQuaFull.data) return 0;
+    const years = getAvailableYears(ketQuaFull.data);
+    const nam = years[0];
+    if (!nam) return 0;
+    return buildAlerts(ketQuaFull.data, loiViPham.data, { nam }).length;
+  }, [ketQuaFull.data, loiViPham.data]);
+
   return (
     <div className="app-shell">
-      <Nav active={page} onChange={setPage} syncStatus={syncStatus} />
+      <Nav active={page} onChange={setPage} syncStatus={syncStatus} alertCount={alertCount} />
       <main className="main">
         {page === "overview" && <Overview loiViPham={loiViPham} ketQuaFull={ketQuaFull} />}
         {page === "ketqua" && <KetQua hook={ketQuaFull} />}

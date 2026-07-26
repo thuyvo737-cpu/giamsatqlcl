@@ -3,7 +3,60 @@
 > Dán toàn bộ nội dung file này vào đầu cuộc trò chuyện mới (kèm file
 > zip code đính kèm) để Claude nắm lại đầy đủ bối cảnh và tiếp tục hỗ trợ.
 
-## 0. Cập nhật lớn gần nhất (chỉnh sửa web ver2)
+## 0. Cập nhật lớn gần nhất (nâng cấp UI/UX ver3 — theo phong cách Power BI/Stripe/Notion)
+
+> Đợt này CHỈ đổi giao diện/trình bày, KHÔNG đổi database/API/công thức
+> tính toán — đúng yêu cầu gốc của người dùng.
+
+- Thang typography chuẩn hoá theo Inter: page-title 36px/700, section-
+  title 24px/700, card-title 18px/600, kpi-value 40px/700.
+- `src/utils/icons.jsx` (mới): bộ icon SVG tối giản tự viết, KHÔNG thêm
+  dependency ngoài (giữ nguyên 3 deps: react/react-dom/recharts).
+- `src/utils/chartTheme.js` (mới): `TOOLTIP_STYLE`, `rateColor()`,
+  `riskColor()`, `riskLabel()` dùng chung cho mọi biểu đồ — đã áp dụng
+  tooltip đồng bộ (bo góc, shadow, font) cho hầu hết biểu đồ recharts.
+- KPI Card (`StatCard.jsx`) viết lại hoàn toàn: nền trắng + viền màu
+  trái (kiểu Stripe/Power BI thay vì khối màu đặc cũ), icon, mũi vươn
+  ▲▼▬ có màu xanh/đỏ/xám, thanh tiến trình, badge mục tiêu, hover nhẹ.
+- **Executive Summary** (`ExecutiveSummary.jsx`, mới) — đặt ngay đầu
+  trang Tổng quan, sinh từ `generateExecutiveSummary()` trong
+  `insights.js`: tuân thủ trung bình toàn viện, nội dung cải thiện/giảm
+  nhiều nhất, top 3 khoa ưu tiên, 3 hành động ưu tiên.
+- **Cảnh báo tự động** (`buildAlerts()` trong `aggregate.js` +
+  `AlertPanel.jsx`): 5S giảm liên tục 3 tháng, khoa giảm mạnh (≥10 điểm
+  % so tháng trước), nội dung dưới 90%, loại lỗi phổ biến nhất trong
+  năm. Số lượng cảnh báo hiện thành badge đỏ trên mục "Tổng quan" ở
+  sidebar (tính ở `App.jsx`).
+- **Khoa cần ưu tiên giám sát** (`buildPriorityKhoa()` +
+  `PriorityKhoaCard.jsx`): điểm rủi ro 0-100 = trọng số của (1) khoảng
+  cách tới 100% tuân thủ 35%, (2) xu hướng giảm so tháng trước 25%, (3)
+  số tháng có lỗi vi phạm 20%, (4) số lỗi tái diễn (xuất hiện ≥2 lần)
+  20%. Màu Đỏ/Cam/Vàng/Xanh theo ngưỡng 70/50/30. **Đây là điểm THAM
+  KHẢO hệ thống tự tính, không phải chỉ số chính thức đã được QLCL phê
+  duyệt** — đã ghi chú rõ dưới card.
+- Nhận xét tự động (`generateContentInsights`) viết lại theo văn phong
+  chuyên gia QLCL: câu liền mạch, có động từ mô tả xu hướng ("tiếp tục
+  cải thiện", "sụt giảm đáng kể"...), kèm khuyến nghị hành động.
+- Trang Kết quả chi tiết: Heatmap Khoa×Tháng có thêm bộ lọc Top 10/Top
+  20/Toàn bộ (mặc định hiện các khoa có tỷ lệ TB thấp nhất trước) + ô
+  tìm khoa theo tên.
+- Trang So sánh hình thức GS: thêm hiển thị sai lệch (+X%/-X%) giữa
+  Giám sát chéo và Ngoại kiểm ngay dưới biểu đồ tổng hợp.
+- Trang Xu hướng: thêm đường "Toàn viện" (nét liền, đại diện xu hướng
+  chung) + đoạn dự báo tháng kế tiếp (nét đứt) bằng hồi quy tuyến tính
+  đơn giản trên tối đa 6 điểm gần nhất — hàm `forecastNextMonth()`
+  trong `aggregate.js`. Không dùng Machine Learning, chỉ least-squares
+  cơ bản; có ghi chú rõ đây là ước tính.
+- Trang Lỗi vi phạm: thêm biểu đồ Pareto (trước đây chỉ có ở Tổng quan)
+  và card "Khuyến nghị cải tiến" sinh tự động ngay sau đó
+  (`generateRecommendations()` — map từ khoá trong tên lỗi sang gợi ý
+  đào tạo/checklist/kiểm tra hồ sơ/hướng dẫn bổ sung).
+- Sidebar: icon riêng cho từng mục, badge số cảnh báo trên "Tổng quan".
+- CSS: card có shadow nhẹ + hover, transition 0.2s, scroll mượt toàn
+  trang, class dùng chung mới: `.exec-summary`, `.alert-card`,
+  `.priority-row`, `.recommend-item`, `.deviation-pill`, `.nav-badge`.
+
+## 0.1 Cập nhật lớn trước đó (chỉnh sửa web ver2)
 
 - Đổi font toàn site sang **Inter** (thay Nunito/Nunito Sans).
 - Trang Tổng quan: bộ lọc tháng/năm chuyển lên **đầu tiên**, tháng giờ

@@ -1,5 +1,3 @@
-import { pillClassForRate } from "./StatCard.jsx";
-
 function fmtDelta(v) {
   const pct = Math.round(v * 1000) / 10;
   const sign = pct > 0 ? "+" : "";

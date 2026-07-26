@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { LoadingState, ErrorState } from "../components/LoadingState.jsx";
 import { InsightBox } from "../components/InsightBox.jsx";
-import { generateViolationInsights } from "../utils/insights.js";
+import { ParetoChart } from "../components/ParetoChart.jsx";
+import { generateViolationInsights, generateRecommendations } from "../utils/insights.js";
 
 export function LoiViPham({ hook }) {
   const months = hook.data?.months || [];
@@ -9,6 +10,7 @@ export function LoiViPham({ hook }) {
   const legend = hook.data?.legend || [];
 
   const insightLines = useMemo(() => generateViolationInsights({ legend, rows }), [legend, rows]);
+  const recommendations = useMemo(() => generateRecommendations(legend), [legend]);
 
   if (hook.loading) return <LoadingState />;
   if (hook.error) return <ErrorState message={hook.error} />;
@@ -30,6 +32,30 @@ export function LoiViPham({ hook }) {
       </div>
 
       <div className="card">
+        <h3 className="card-title">Pareto lỗi vi phạm (lũy kế năm)</h3>
+        <ParetoChart legend={legend} />
+      </div>
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3 className="card-title">Khuyến nghị cải tiến</h3>
+        {recommendations.length === 0 ? (
+          <div className="state-box">Chưa có dữ liệu để sinh khuyến nghị.</div>
+        ) : (
+          <div className="recommend-list">
+            {recommendations.map((r) => (
+              <div className="recommend-item" key={r.name}>
+                <span className="recommend-arrow">↓</span>
+                <div className="recommend-body">
+                  Lỗi: <b>{r.name}</b> ({r.count} lượt) → Khuyến nghị: <b>{r.recommendation}</b>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="disclaimer-note">* Khuyến nghị được hệ thống sinh tự động dựa trên loại lỗi phổ biến, chỉ mang tính gợi ý tham khảo.</p>
+      </div>
+
+      <div className="card" style={{ marginTop: 20 }}>
         <h3 className="card-title">Bảng chú giải các loại vi phạm</h3>
         <div className="table-wrap table-scroll" style={{ maxHeight: 320 }}>
           <table>

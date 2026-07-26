@@ -32,6 +32,14 @@ export const CONTENT_COLORS = {
   s5: "var(--c-5s)",
 };
 
+export const CONTENT_COLORS_BG = {
+  nhanDang: "var(--c-nhandang-bg)",
+  vongTay: "var(--c-vongtay-bg)",
+  teNga: "var(--c-tenga-bg)",
+  atpt: "var(--c-atpt-bg)",
+  s5: "var(--c-5s-bg)",
+};
+
 export function weightedAvg(items) {
   const valid = (items || []).filter(
     (x) => x && x.rate !== null && x.rate !== undefined
@@ -400,7 +408,174 @@ export function buildContentSummary(ketQuaFull, { thang, nam, khoa, prevThang, p
   });
 }
 
-/** Tìm các mã lỗi lặp lại (xuất hiện từ 2 lượt trở lên) trong các tháng thuộc kỳ đang xem. */
+/**
+ * Sinh danh sách cảnh báo tự động từ dữ liệu hiện có (không cần dữ liệu
+ * mới): 5S giảm liên tục 3 tháng, khoa giảm mạnh so với tháng trước,
+ * nội dung dưới ngưỡng 90%, loại lỗi phổ biến nhất trong năm.
+ */
+export function buildAlerts(ketQuaFull, loiViPhamData, { nam }) {
+  const alerts = [];
+  let latestMonth = 0;
+  CONTENT_KEYS.forEach((key) => {
+    getRecordsForContent(ketQuaFull, key).forEach((r) => {
+      if (r.nam === nam && r.thang > latestMonth) latestMonth = r.thang;
+    });
+  });
+  if (!latestMonth) return alerts;
+  const fmtP = (v) => `${Math.round(v * 1000) / 10}%`;
+  const fmtPP = (v) => `${Math.round(v * 1000) / 10} điểm %`;
+
+  // 1) 5S giảm liên tục 3 tháng
+  const s5Records = getRecordsForContent(ketQuaFull, "s5");
+  const s5rates = [];
+  for (let m = latestMonth - 2; m <= latestMonth; m++) {
+    s5rates.push(m < 1 ? null : computeRate(s5Records, { thang: m, nam, khoa: null, contentKey: "s5" }).rate);
+  }
+  if (s5rates.every((v) => v !== null) && s5rates[0] > s5rates[1] && s5rates[1] > s5rates[2]) {
+    alerts.push({
+      level: "warn",
+      text: `Đánh giá 5S giảm liên tục 3 tháng gần đây (Tháng ${latestMonth - 2} → ${latestMonth}): từ ${fmtP(s5rates[0])} xuống còn ${fmtP(s5rates[2])}.`,
+    });
+  }
+
+  // 2) Khoa giảm mạnh so với tháng trước (≥ 10 điểm %)
+  const prevMonth = latestMonth === 1 ? 12 : latestMonth - 1;
+  const prevNam = latestMonth === 1 ? nam - 1 : nam;
+  let worstDrop = null;
+  CONTENT_KEYS.forEach((key) => {
+    const records = getRecordsForContent(ketQuaFull, key);
+    listKhoa(records.filter((r) => r.thang === latestMonth && r.nam === nam)).forEach((khoa) => {
+      const cur = computeRate(records, { thang: latestMonth, nam, khoa, contentKey: key }).rate;
+      const prev = computeRate(records, { thang: prevMonth, nam: prevNam, khoa, contentKey: key }).rate;
+      if (cur !== null && prev !== null) {
+        const delta = cur - prev;
+        if (delta <= -0.1 && (!worstDrop || delta < worstDrop.delta)) worstDrop = { khoa, key, delta, cur };
+      }
+    });
+  });
+  if (worstDrop) {
+    alerts.push({
+      level: "danger",
+      text: `Khoa ${worstDrop.khoa} giảm mạnh ở nội dung "${CONTENT_LABELS[worstDrop.key]}" — giảm ${fmtPP(Math.abs(worstDrop.delta))} so với tháng trước, hiện còn ${fmtP(worstDrop.cur)}.`,
+    });
+  }
+
+  // 3) Nội dung dưới ngưỡng 90%
+  const below90 = [];
+  CONTENT_KEYS.forEach((key) => {
+    const { rate } = computeRate(getRecordsForContent(ketQuaFull, key), { thang: latestMonth, nam, khoa: null, contentKey: key });
+    if (rate !== null && rate < 0.9) below90.push({ key, rate });
+  });
+  if (below90.length) {
+    const names = below90.map((b) => `${CONTENT_LABELS[b.key]} (${fmtP(b.rate)})`).join(", ");
+    alerts.push({ level: "warn", text: `${below90.length} nội dung đang dưới ngưỡng 90% trong Tháng ${latestMonth}/${nam}: ${names}.` });
+  }
+
+  // 4) Loại lỗi phổ biến nhất trong năm
+  const top = (loiViPhamData?.legend || []).filter((v) => v.count > 0)[0];
+  if (top) {
+    alerts.push({
+      level: "warn",
+      text: `Loại lỗi vi phạm ghi nhận nhiều nhất là "${top.name}" (${top.count} lượt trong năm) — cần rà soát nguyên nhân gốc.`,
+    });
+  }
+
+  return alerts;
+}
+
+/**
+ * Tính điểm ưu tiên giám sát cho từng khoa (0-100, càng cao càng cần ưu
+ * tiên) từ 4 yếu tố: tỷ lệ tuân thủ hiện tại, xu hướng giảm so với
+ * tháng trước, số lỗi vi phạm, số lần lỗi tái diễn — hoàn toàn từ dữ
+ * liệu đã có, KHÔNG phải chỉ số chính thức đã được QLCL phê duyệt.
+ */
+export function buildPriorityKhoa(ketQuaFull, loiViPhamData, { nam }, topN = 5) {
+  let latestMonth = 0;
+  CONTENT_KEYS.forEach((key) => {
+    getRecordsForContent(ketQuaFull, key).forEach((r) => {
+      if (r.nam === nam && r.thang > latestMonth) latestMonth = r.thang;
+    });
+  });
+  if (!latestMonth) return [];
+  const prevMonth = latestMonth === 1 ? 12 : latestMonth - 1;
+  const prevNam = latestMonth === 1 ? nam - 1 : nam;
+
+  const allKhoa = new Set();
+  CONTENT_KEYS.forEach((g) =>
+    listKhoa(getRecordsForContent(ketQuaFull, g).filter((r) => r.thang === latestMonth && r.nam === nam)).forEach((k) => allKhoa.add(k))
+  );
+
+  const violationMap = new Map((loiViPhamData?.rows || []).map((r) => [r.khoa, r]));
+
+  const scored = Array.from(allKhoa).map((khoa) => {
+    const rates = [];
+    const deltas = [];
+    CONTENT_KEYS.forEach((key) => {
+      const records = getRecordsForContent(ketQuaFull, key);
+      const cur = computeRate(records, { thang: latestMonth, nam, khoa, contentKey: key }).rate;
+      const prev = computeRate(records, { thang: prevMonth, nam: prevNam, khoa, contentKey: key }).rate;
+      if (cur !== null) rates.push(cur);
+      if (cur !== null && prev !== null) deltas.push(cur - prev);
+    });
+    const avgRate = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : null;
+    const avgDelta = deltas.length ? deltas.reduce((a, b) => a + b, 0) / deltas.length : 0;
+
+    const vRow = violationMap.get(khoa);
+    const violationCount = vRow ? vRow.total : 0;
+    const codeCounts = {};
+    (vRow?.monthly || []).forEach((c) => {
+      if (c.code !== null) codeCounts[c.code] = (codeCounts[c.code] || 0) + 1;
+    });
+    const repeatCount = Object.values(codeCounts).filter((n) => n >= 2).length;
+
+    const complianceGap = avgRate === null ? 0.5 : 1 - avgRate;
+    const trendComponent = Math.min(1, Math.max(0, -avgDelta) / 0.3);
+    const violationComponent = Math.min(1, violationCount / 12);
+    const repeatComponent = Math.min(1, repeatCount / 4);
+
+    const score = Math.round(100 * (0.35 * complianceGap + 0.25 * trendComponent + 0.2 * violationComponent + 0.2 * repeatComponent));
+
+    const reasons = [];
+    if (avgRate !== null && avgRate < 0.8) reasons.push(`tỷ lệ tuân thủ ${Math.round(avgRate * 1000) / 10}%`);
+    if (avgDelta < -0.03) reasons.push(`đang giảm ${Math.round(Math.abs(avgDelta) * 1000) / 10} điểm %`);
+    if (violationCount > 0) reasons.push(`${violationCount} tháng có lỗi`);
+    if (repeatCount > 0) reasons.push(`${repeatCount} lỗi tái diễn`);
+
+    return { khoa, score, avgRate, avgDelta, violationCount, repeatCount, reason: reasons.join(", ") || "không có yếu tố nổi bật" };
+  });
+
+  return scored.sort((a, b) => b.score - a.score).slice(0, topN);
+}
+
+/**
+ * Dự báo tỷ lệ tháng kế tiếp bằng hồi quy tuyến tính đơn giản trên tối
+ * đa 6 điểm dữ liệu gần nhất (không dùng Machine Learning, chỉ least-
+ * squares cơ bản). Trả về null nếu chưa đủ dữ liệu hoặc đã là tháng 12.
+ */
+export function forecastNextMonth(monthlyRates) {
+  const points = monthlyRates.map((v, i) => ({ x: i, y: v })).filter((p) => p.y !== null && p.y !== undefined);
+  if (points.length < 3) return null;
+  const last = points[points.length - 1];
+  if (last.x >= 11) return null;
+
+  const recent = points.slice(-6);
+  const n = recent.length;
+  const sumX = recent.reduce((s, p) => s + p.x, 0);
+  const sumY = recent.reduce((s, p) => s + p.y, 0);
+  const sumXY = recent.reduce((s, p) => s + p.x * p.y, 0);
+  const sumXX = recent.reduce((s, p) => s + p.x * p.x, 0);
+  const denom = n * sumXX - sumX * sumX;
+  let slope = 0;
+  let intercept = sumY / n;
+  if (denom !== 0) {
+    slope = (n * sumXY - sumX * sumY) / denom;
+    intercept = (sumY - slope * sumX) / n;
+  }
+  const forecastIndex = last.x + 1;
+  const forecastValue = Math.min(1, Math.max(0, slope * forecastIndex + intercept));
+  return { forecastIndex, forecastValue, lastIndex: last.x, lastValue: last.y };
+}
+
 export function findRepeatedViolations(loiViPhamData, months) {
   if (!loiViPhamData || !months || !months.length) return [];
   const monthIdxSet = new Set(months.map((m) => m - 1));
